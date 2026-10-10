@@ -126,11 +126,17 @@ footer{font-size:12px;color:var(--muted);text-align:center}
     <div class="step">
       <h2><span class="k">B</span> Mensagem</h2>
       <textarea id="s-msg" aria-label="Mensagem para enviar"></textarea>
+      <label class="drop" id="s-drop">
+        <input type="file" id="s-file" accept="application/pdf,.pdf">
+        <span class="btn">Escolher PDF do relatório</span>
+        <span class="meta" id="s-meta"><b>PDF para anexar</b><span>Escolha o relatório do mês para enviar junto com a mensagem.</span></span>
+      </label>
       <div class="btns">
-        <button class="btn primary" id="s-copy">Copiar mensagem</button>
-        <a class="btn" id="s-wa" href="https://wa.me/" target="_blank" rel="noopener">Abrir no WhatsApp</a>
+        <button class="btn primary" id="s-share" hidden>Enviar PDF + mensagem</button>
+        <button class="btn" id="s-copy">Copiar mensagem</button>
+        <a class="btn" id="s-wa" href="https://wa.me/" target="_blank" rel="noopener">Abrir no WhatsApp (só texto)</a>
       </div>
-      <p class="note">Anexe o PDF do relatório na mesma conversa do WhatsApp, junto com esta mensagem.</p>
+      <p class="note" id="s-hint">O link do WhatsApp leva só o texto. Para anexar o PDF automaticamente, use "Enviar PDF + mensagem" e escolha o WhatsApp na lista.</p>
       <div class="status" id="s-status" hidden></div>
     </div>
   </section>
@@ -333,6 +339,27 @@ $('#s-copy').addEventListener('click',async()=>{
   catch(e){sMsg.focus();sMsg.select();setStatus($('#s-status'),'Texto selecionado. Use Copiar do seu aparelho.','warn')}
 });
 refreshMsg();
+
+/* anexar PDF + mensagem via compartilhamento do sistema */
+let sendFile=null;
+const canShareFiles=f=>{try{return !inClaude&&!!navigator.canShare&&navigator.canShare({files:[f]})}catch(e){return false}};
+(function(){try{const probe=new File([new Uint8Array([37])],'t.pdf',{type:'application/pdf'});$('#s-share').hidden=!canShareFiles(probe)}catch(e){}})();
+if(inClaude)$('#s-hint').textContent='Dentro do Claude o compartilhamento de arquivo é bloqueado. Abra o painel pelo endereço do GitHub Pages para anexar o PDF automaticamente, ou anexe o PDF manualmente na conversa.';
+else if($('#s-share').hidden)$('#s-hint').textContent='Este navegador não compartilha arquivos. Envie a mensagem e anexe o PDF manualmente na conversa (clipe > Documento).';
+$('#s-file').addEventListener('change',async()=>{
+  const f=$('#s-file').files[0];if(!f)return;sendFile=f;
+  const meta=$('#s-meta');meta.innerHTML='<b></b><span>Pronto para enviar</span>';meta.querySelector('b').textContent=f.name;
+  try{const d=await loadPdfjs(new Uint8Array(await f.arrayBuffer()));const facts=await pdfFacts(d);
+    if(facts.comp){sComp.value=facts.comp;store.set('comp',facts.comp);msgTouched=false;refreshMsg();meta.querySelector('span').textContent='Competência '+facts.comp+' · pronto para enviar'}}catch(e){}
+});
+$('#s-share').addEventListener('click',async()=>{
+  const st=$('#s-status');
+  if(!sendFile)return setStatus(st,'Escolha primeiro o PDF do relatório.','bad');
+  try{await navigator.clipboard.writeText(sMsg.value)}catch(e){}
+  try{await navigator.share({files:[sendFile],text:sMsg.value,title:'Relatório de Manutenção '+(sComp.value||'')});
+    setStatus(st,'Enviado para o compartilhamento. Se a mensagem não apareceu junto do PDF, ela já está copiada: é só colar na conversa.','ok')}
+  catch(e){if(e.name!=='AbortError')setStatus(st,'Não foi possível compartilhar. Use "Abrir no WhatsApp" e anexe o PDF manualmente.','bad')}
+});
 
 /* ---------- ASSINAR ---------- */
 const A={bytes:null,name:'',pdf:null,facts:null,existing:[],field:null,manual:false,pageRender:null,detailBase:null,renderTok:0};
