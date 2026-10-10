@@ -207,9 +207,9 @@ function rdp(pts,eps){
 function encodeStrokes(strokes,lineCss){
   const pts=strokes.flat();let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
   for(const[x,y]of pts){x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y)}
-  const f=320/Math.max(x1-x0,y1-y0,1);const out=[];
+  const f=220/Math.max(x1-x0,y1-y0,1);const out=[];
   const push=v=>{while(v>127){out.push((v&127)|128);v>>>=7}out.push(v)};const zz=v=>v<0?(-v*2-1):v*2;
-  const S=strokes.map(s=>rdp(s,0.9).map(p=>[Math.round((p[0]-x0)*f),Math.round((p[1]-y0)*f)]).filter((p,i,a)=>!i||p[0]!==a[i-1][0]||p[1]!==a[i-1][1]));
+  const S=strokes.map(s=>rdp(s,1.1).map(p=>[Math.round((p[0]-x0)*f),Math.round((p[1]-y0)*f)]).filter((p,i,a)=>!i||p[0]!==a[i-1][0]||p[1]!==a[i-1][1]));
   push(S.length);
   for(const s of S){push(s.length);let px=0,py=0;for(const[x,y]of s){push(zz(x-px));push(zz(y-py));px=x;py=y}}
   return {s:b64u.enc(Uint8Array.from(out)),lw:Math.round(lineCss*f*10)/10};
@@ -232,8 +232,20 @@ function strokesToCanvas(strokes,lw,width){
   const c=document.createElement('canvas');c.width=Math.round((x1-x0)*sc);c.height=Math.max(1,Math.round((y1-y0)*sc));
   drawStrokes(c.getContext('2d'),strokes,sc,x0,y0,lw);return c;
 }
+/* compactação dos links: JSON -> deflate -> base64url ("1" = comprimido, "0" = sem compressão) */
+async function streamBytes(bytes,ctor,fmt){const s=new Blob([bytes]).stream().pipeThrough(new ctor(fmt));return new Uint8Array(await new Response(s).arrayBuffer())}
+async function pack(o){
+  const raw=new TextEncoder().encode(JSON.stringify(o));
+  try{if(typeof CompressionStream!=='undefined'){const z=await streamBytes(raw,CompressionStream,'deflate-raw');if(z.length<raw.length)return '1'+b64u.enc(z)}}catch(e){}
+  return '0'+b64u.enc(raw);
+}
+async function unpack(s){
+  const flag=s[0],b=b64u.dec(s.slice(1));
+  if(flag==='1')return JSON.parse(new TextDecoder().decode(await streamBytes(b,DecompressionStream,'deflate-raw')));
+  if(flag==='0')return JSON.parse(new TextDecoder().decode(b));
+  return JSON.parse(new TextDecoder().decode(b64u.dec(s)));
+}
 const packPayload=o=>b64u.enc(new TextEncoder().encode(JSON.stringify(o)));
-const unpackPayload=s=>JSON.parse(new TextDecoder().decode(b64u.dec(s)));
 
 /* ---------- leitura do PDF ---------- */
 async function pdfFacts(bytes){
@@ -252,7 +264,9 @@ async function pdfFacts(bytes){
     for(const a of items.filter(i=>/^assinatura$/i.test(i.s))){
       const below=items.filter(i=>i!==a&&i.y<a.y&&a.y-i.y<45&&Math.abs(i.cx-a.cx)<70&&!/^(nome|assinatura)$/i.test(i.s)).sort((m,n)=>(a.y-m.y)-(a.y-n.y));
       const nome=items.filter(i=>/^nome$/i.test(i.s)&&i.y>a.y&&i.y-a.y<70&&Math.abs(i.cx-a.cx)<45).sort((m,n)=>m.y-n.y)[0];
-      fields.push({page:p-1,role:below[0]?below[0].s:`Assinatura ${fields.length+1}`,box:{x:a.cx-82,y:a.y+11.5,w:164,h:24},namePos:{x:a.cx,y:nome?nome.y+12.5:a.y+48}});
+      const rl=below[0];
+      fields.push({page:p-1,role:rl?rl.s:`Assinatura ${fields.length+1}`,box:{x:a.cx-82,y:a.y+11.5,w:164,h:24},namePos:{x:a.cx,y:nome?nome.y+12.5:a.y+48},
+        extraPos:(rl&&a.y-rl.y>28)?{x:rl.cx,y:rl.y+12.5}:null});
     }
   }
   return {fields,comp,casa,pend:pend.slice(0,6),numPages:doc.numPages};
@@ -283,14 +297,18 @@ async function offerFile(bytes,filename,box){
 
 /* =============== MODO: QUEM ASSINA =============== */
 const Q=new URLSearchParams(location.search);
-if(Q.get('p')){
+if(Q.get('a')||Q.get('p')){
   $('#panel').hidden=true;$('#signer').hidden=false;document.title='Assinar relatório';
-  const role=Q.get('p'),comp=Q.get('c')||'',casa=Q.get('h')||'',back=Q.get('w')||'',key=Q.get('k')||'',base=Q.get('b')||(location.origin+location.pathname);
+  (async()=>{
+  let A={};
+  if(Q.get('a')){try{const r=await unpack(Q.get('a'));A={p:r[0],c:r[1],h:r[2],n:r[3],w:r[4],k:r[5],i:r[6]}}catch(e){$('#s-sub').textContent='Este link está incompleto. Peça um novo link para quem te enviou.';$('#s-send').disabled=true;return}}
+  else A={p:Q.get('p'),c:Q.get('c'),h:Q.get('h'),n:Q.get('n'),w:Q.get('w'),k:Q.get('k'),i:Q.get('i')};
+  const role=A.p,comp=A.c||'',casa=A.h||'',back=A.w||'',key=A.k||'',base=location.origin+location.pathname;
   $('#s-sub').textContent=`Falta só a sua assinatura como ${role} no Relatório de Manutenção.`;
   $('#s-facts').innerHTML=(casa?`<div><span>Casa de Oração</span>${esc(casa)}</div>`:'')+(comp?`<div><span>Competência</span><b class="mono">${esc(comp)}</b></div>`:'')+`<div><span>Assinar como</span><b>${esc(role)}</b></div>`;
-  const pend=(Q.get('i')||'').split('|').filter(Boolean);
+  const pend=(A.i||'').split('|').filter(Boolean);
   $('#s-pend').innerHTML=pend.length?`<p class="note" style="margin-bottom:4px">Pontos anotados no relatório:</p><ul class="pend">${pend.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`:'<p class="note">Sem pontos de atenção anotados.</p>';
-  $('#s-name').value=Q.get('n')||'';
+  $('#s-name').value=A.n||'';
   const padEl=$('#pad');let strokes=[],cur=null;
   const sizePad=()=>{const r=padEl.getBoundingClientRect();if(!r.width)return;const dpr=Math.min(window.devicePixelRatio||1,3);padEl.width=Math.round(r.width*dpr);padEl.height=Math.round(r.height*dpr);redraw()};
   const redraw=()=>{const r=padEl.getBoundingClientRect();const ctx=padEl.getContext('2d');const k=padEl.width/(r.width||1);ctx.setTransform(k,0,0,k,0,0);ctx.clearRect(0,0,r.width,r.height);drawStrokes(ctx,strokes,1,0,0,3);$('#pad-wrap').classList.toggle('has',strokes.length>0)};
@@ -300,21 +318,22 @@ if(Q.get('p')){
   const end=()=>{cur=null};padEl.addEventListener('pointerup',end);padEl.addEventListener('pointercancel',end);
   window.addEventListener('resize',sizePad);requestAnimationFrame(sizePad);
   $('#s-clear').addEventListener('click',()=>{strokes=[];redraw();setStatus($('#s-status'),'')});
-  $('#s-send').addEventListener('click',()=>{
+  $('#s-send').addEventListener('click',async()=>{
     const st=$('#s-status');const name=$('#s-name').value.trim();
     if(!name){setStatus(st,'Escreva seu nome no campo acima.','bad');$('#s-name').focus();return}
     if(strokes.flat().length<4){setStatus(st,'Faça sua assinatura no quadro branco.','bad');return}
     const enc=encodeStrokes(strokes,3);
     const payload={v:2,k:key,p:role,n:name,t:Date.now(),lw:enc.lw,s:enc.s};
-    const link=base+'#r='+packPayload(payload);
+    const link=base+'#r='+await pack([2,key,role,name,payload.t,enc.lw,enc.s]);
     const month=LS.get('month',null);
     if(month&&month.k===key){const sig=LS.get('sigs:'+key,{});sig[norm(role)]=payload;LS.set('sigs:'+key,sig)}
-    const txt=`Assinatura do Relatório ${comp} — ${role}: ${name}.\nToque no link para registrar:\n${link}`;
+    const txt=`✅ Assinei (${role}).\n${link}`;
     const wa=`https://wa.me/${digits(back)}?text=${encodeURIComponent(txt)}`;
     $('#s-form').hidden=true;$('#s-done').hidden=false;$('#s-wa').href=wa;
     if(month&&month.k===key){$('#s-done-txt').textContent='Assinatura registrada neste aparelho. Pode fechar esta página.';$('#s-wa').hidden=true}
     else{try{location.href=wa}catch(e){}}
   });
+  })();
   return;
 }
 
@@ -352,10 +371,10 @@ function renderMonth(){
     (facts.pend.length?`<p class="note" style="margin-top:8px">Pontos anotados (aparecem para quem assina): ${facts.pend.map(esc).join('; ')}</p>`:'');
   $('#p-reset').hidden=false;renderSigners();
 }
-function signerLink(role,c){
+async function signerLink(role,c){
   const base=($('#p-base').value||DEFAULT_BASE).trim();
-  const q=new URLSearchParams({p:role,c:facts.comp||'',h:facts.casa||'',n:c.name||'',w:$('#p-me').value||'',k:month.k,i:facts.pend.join('|'),b:base});
-  return base+(base.includes('?')?'&':'?')+q.toString();
+  const a=await pack([role,facts.comp||'',facts.casa||'',c.name||'',digits($('#p-me').value),month.k,facts.pend.join('|')]);
+  return base+(base.includes('?')?'&':'?')+'a='+a;
 }
 function renderSigners(){
   const box=$('#p-signers');
@@ -367,25 +386,26 @@ function renderSigners(){
     const el=document.createElement('div');el.className='signer';
     el.innerHTML=`<div class="top"><b></b>${s?'<span class="pill ok">assinado</span>':'<span class="pill wait">pendente</span>'}</div>
       ${s?'<div class="done"></div>':''}
-      <div class="row"><label class="f">Nome<input type="text" data-k="name" placeholder="Nome de quem assina"></label><label class="f">WhatsApp<input type="tel" data-k="phone" placeholder="19 99999-0000"></label></div>
+      <div class="row"><label class="f">Nome<input type="text" data-k="name" placeholder="Nome de quem assina"></label><label class="f">WhatsApp<input type="tel" data-k="phone" placeholder="19 99999-0000"></label>${f.extraPos?`<label class="f">${esc(f.role)} (sai impresso no relatório)<input type="text" data-k="extra" placeholder="Ex.: Ancião, Diácono, Cooperador"></label>`:''}</div>
       <div class="btns"><a class="btn wa" target="_blank" rel="noopener">Pedir pelo WhatsApp</a><button class="btn" data-a="copy">Copiar link</button>${s?'<button class="btn" data-a="undo">Remover assinatura</button>':''}</div>`;
     el.querySelector('.top b').textContent=f.role;
     if(s){const d=el.querySelector('.done');d.textContent=`${s.n} · ${fmtDate(s.t)}`;try{const img=new Image();img.alt='Assinatura de '+s.n;img.src=strokesToCanvas(decodeStrokes(s.s),s.lw,240).toDataURL();d.appendChild(img)}catch(e){}}
-    const nm=el.querySelector('[data-k=name]'),ph=el.querySelector('[data-k=phone]'),wa=el.querySelector('a.wa');nm.value=c.name;ph.value=c.phone;
-    const upd=()=>{const cc={name:nm.value.trim(),phone:ph.value};LS.set('contact:'+norm(f.role),cc);
-      const first=(cc.name.split(' ')[0]||'');
-      const txt=`A Paz de Deus${first?', '+first:''}! Preciso da sua assinatura no Relatório de Manutenção ${facts.comp||''} como ${f.role}.\n\nÉ só tocar no link, assinar com o dedo e tocar em "Enviar assinatura":\n${signerLink(f.role,cc)}`;
+    const nm=el.querySelector('[data-k=name]'),ph=el.querySelector('[data-k=phone]'),ex=el.querySelector('[data-k=extra]'),wa=el.querySelector('a.wa');nm.value=c.name;ph.value=c.phone;if(ex)ex.value=c.extra||'';
+    let tok=0;
+    const upd=async()=>{const my=++tok;const cc={name:nm.value.trim(),phone:ph.value,extra:ex?ex.value.trim():''};LS.set('contact:'+norm(f.role),cc);
+      const first=(cc.name.split(' ')[0]||'');const link=await signerLink(f.role,cc);if(my!==tok)return;
+      const txt=`A Paz de Deus${first?', '+first:''}! Preciso da sua assinatura no Relatório de Manutenção ${facts.comp||''}. Toque no link para assinar:\n${link}`;
       wa.href=`https://wa.me/${digits(cc.phone)}?text=${encodeURIComponent(txt)}`;wa.dataset.txt=txt};
-    nm.addEventListener('input',upd);ph.addEventListener('input',upd);upd();
+    nm.addEventListener('input',upd);ph.addEventListener('input',upd);if(ex)ex.addEventListener('input',upd);upd();
     el.querySelector('[data-a=copy]').onclick=async ev=>{try{await navigator.clipboard.writeText(wa.dataset.txt);ev.target.textContent='Copiado'}catch(e){ev.target.textContent='Não deu para copiar'}setTimeout(()=>ev.target.textContent='Copiar link',1800)};
     const undo=el.querySelector('[data-a=undo]');if(undo)undo.onclick=()=>{const all=LS.get('sigs:'+month.k,{});delete all[norm(f.role)];LS.set('sigs:'+month.k,all);renderSigners()};
     box.appendChild(el);
   }
   $('#p-final').disabled=!count;$('#p-final').textContent=count?`Gerar PDF assinado (${count} de ${facts.fields.length})`:'Gerar PDF assinado';
 }
-function receive(code,fromPaste){
+async function receive(code,fromPaste){
   const ban=$('#p-banner');
-  let p;try{p=unpackPayload(code)}catch(e){setStatus(ban,'Não consegui ler esta assinatura. Peça para a pessoa enviar de novo.','bad');return}
+  let p;try{const r=await unpack(code);p=Array.isArray(r)?{v:r[0],k:r[1],p:r[2],n:r[3],t:r[4],lw:r[5],s:r[6]}:r}catch(e){setStatus(ban,'Não consegui ler esta assinatura. Peça para a pessoa enviar de novo.','bad');return}
   if(!month){LS.set('pending',p);setStatus(ban,`Assinatura de ${p.n} (${p.p}) recebida. Carregue o relatório do mês para registrá-la.`,'warn');return}
   if(p.k&&p.k!==month.k){setStatus(ban,`Esta assinatura de ${p.n} é de outro relatório (pedido de um mês anterior). Peça para assinar o link novo.`,'bad');return}
   const all=LS.get('sigs:'+month.k,{});all[norm(p.p)]=p;LS.set('sigs:'+month.k,all);
@@ -406,6 +426,9 @@ async function stamp(lib,list){
     page.drawImage(img,{x:f.box.x+(f.box.w-w)/2,y:f.box.y,width:w,height:h});
     const label=safe(`${s.n}  ·  ${fmtDate(s.t)}`);let size=8.5;while(font.widthOfTextAtSize(label,size)>f.box.w+8&&size>5)size-=.5;
     page.drawText(label,{x:f.namePos.x-font.widthOfTextAtSize(label,size)/2,y:f.namePos.y,size,font,color:PDFLib.rgb(.1,.16,.42)});
+    const extra=f.extraPos?safe((LS.get('contact:'+norm(f.role),{}).extra||'').trim()):'';
+    if(extra){let es=9;while(font.widthOfTextAtSize(extra,es)>f.box.w+6&&es>5)es-=.5;
+      page.drawText(extra,{x:f.extraPos.x-font.widthOfTextAtSize(extra,es)/2,y:f.extraPos.y,size:es,font,color:PDFLib.rgb(.1,.16,.42)})}
   }
 }
 $('#p-final').addEventListener('click',async()=>{
@@ -423,9 +446,9 @@ $('#p-final').addEventListener('click',async()=>{
 
 (async function boot(){
   await restore();
-  const pend=LS.get('pending',null);if(pend&&month){LS.del('pending');receive(packPayload(pend))}
+  const pend=LS.get('pending',null);if(pend&&month){LS.del('pending');await receive(packPayload(pend))}
   const m=location.hash.match(/^#r=([A-Za-z0-9_-]+)/);
-  if(m){receive(m[1]);try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}
+  if(m){await receive(m[1]);try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}
   renderSigners();
 })();
 })();
