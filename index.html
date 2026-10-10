@@ -4,211 +4,174 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: uma coluna estreita de ferramenta; abas = as 3 etapas do ciclo mensal (enviar → assinar → juntar) */
+/* Layout: coluna única. Painel do responsável = cartões em sequência; tela de quem assina = uma tarefa só, letras grandes */
 :root{
   --paper:#F2F4F7; --sheet:#FFFFFF; --ink:#18223A; --muted:#5B6578; --line:#D9DEE7;
-  --pen:#2340A8; --pen-soft:#E6EBFA; --ok:#1F7A4D; --ok-soft:#E3F3EA; --warn:#9A5B00; --warn-soft:#FBEFD9; --bad:#B42318;
-  --sig-ink:#1A2A6C;
+  --pen:#2340A8; --pen-soft:#E6EBFA; --ok:#1F7A4D; --ok-soft:#E3F3EA; --warn:#9A5B00; --warn-soft:#FBEFD9; --bad:#B42318; --wa:#1E8E4E;
   --f-ui:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --f-data:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   --r:10px;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --paper:#0F1420; --sheet:#171E2C; --ink:#E6EAF2; --muted:#9AA4B8; --line:#2A3346;
-  --pen:#8EA6FF; --pen-soft:#1E2846; --ok:#5CCB92; --ok-soft:#14301F; --warn:#F0B35A; --warn-soft:#33260F; --bad:#FF8A80; color-scheme:dark}}
+  --pen:#8EA6FF; --pen-soft:#1E2846; --ok:#5CCB92; --ok-soft:#14301F; --warn:#F0B35A; --warn-soft:#33260F; --bad:#FF8A80; --wa:#3FBF73; color-scheme:dark}}
 :root[data-theme="dark"]{
   --paper:#0F1420; --sheet:#171E2C; --ink:#E6EAF2; --muted:#9AA4B8; --line:#2A3346;
-  --pen:#8EA6FF; --pen-soft:#1E2846; --ok:#5CCB92; --ok-soft:#14301F; --warn:#F0B35A; --warn-soft:#33260F; --bad:#FF8A80; color-scheme:dark}
+  --pen:#8EA6FF; --pen-soft:#1E2846; --ok:#5CCB92; --ok-soft:#14301F; --warn:#F0B35A; --warn-soft:#33260F; --bad:#FF8A80; --wa:#3FBF73; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--paper);color:var(--ink);font-family:var(--f-ui);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:20px 48px}
-.wrap{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
 header{display:flex;flex-direction:column;gap:4px}
 .eyebrow{font-family:var(--f-data);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 h1{font-size:26px;line-height:1.15;margin:0;text-wrap:balance;font-weight:700}
 .lede{margin:0;color:var(--muted);max-width:62ch}
-nav.tabs{display:flex;gap:6px;flex-wrap:wrap}
-nav.tabs button{flex:1 1 150px;display:flex;gap:10px;align-items:center;text-align:left;padding:10px 12px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);border-radius:var(--r);font:inherit;cursor:pointer}
-nav.tabs button .n{font-family:var(--f-data);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);font-size:12px;flex:none}
-nav.tabs button small{display:block;color:var(--muted);font-size:12px;line-height:1.3}
-nav.tabs button[aria-selected="true"]{border-color:var(--pen);box-shadow:inset 0 0 0 1px var(--pen)}
-nav.tabs button[aria-selected="true"] .n{background:var(--pen);color:var(--sheet);border-color:var(--pen)}
-section.panel{background:var(--sheet);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:18px}
-.step{display:flex;flex-direction:column;gap:10px}
-.step h2{font-size:16px;margin:0;display:flex;gap:8px;align-items:baseline}
-.step h2 .k{font-family:var(--f-data);font-size:12px;color:var(--pen)}
+.card{background:var(--sheet);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card h2{font-size:16px;margin:0;display:flex;gap:8px;align-items:baseline}
+.card h2 .k{font-family:var(--f-data);font-size:12px;color:var(--pen)}
 label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);min-width:0}
-input[type=text],input[type=tel],input[type=url],select,textarea{font:inherit;font-size:15px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
-textarea{resize:vertical;min-height:170px;font-size:14px;line-height:1.45}
-input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,.drop:focus-within{outline:2px solid var(--pen);outline-offset:2px}
-.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
-.btns{display:flex;flex-wrap:wrap;gap:8px}
-.btn{font:inherit;font-weight:600;font-size:14px;padding:10px 16px;border-radius:8px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+input[type=text],input[type=tel],input[type=url],textarea{font:inherit;font-size:15px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+textarea{resize:vertical;min-height:70px;font-size:13px;font-family:var(--f-data)}
+input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible,.drop:focus-within{outline:2px solid var(--pen);outline-offset:2px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.btns{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{font:inherit;font-weight:600;font-size:14px;padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:var(--sheet);color:var(--ink);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;justify-content:center}
 .btn.primary{background:var(--pen);border-color:var(--pen);color:var(--sheet)}
+.btn.wa{background:var(--wa);border-color:var(--wa);color:#fff}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-.drop{border:1.5px dashed var(--line);border-radius:var(--r);padding:18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--paper)}
+.drop{border:1.5px dashed var(--line);border-radius:var(--r);padding:14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--paper);cursor:pointer}
 .drop.over{border-color:var(--pen);background:var(--pen-soft)}
 .drop input{position:absolute;width:1px;height:1px;opacity:0}
-.drop .meta{min-width:0;flex:1 1 200px}
+.drop .meta{min-width:0;flex:1 1 220px}
 .drop .meta b{display:block;word-break:break-word}
 .drop .meta span{color:var(--muted);font-size:13px}
 .mono{font-family:var(--f-data);font-variant-numeric:tabular-nums}
-.chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{font:inherit;font-size:14px;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
-.chip[aria-pressed="true"]{background:var(--pen);color:var(--sheet);border-color:var(--pen)}
-.chip .tag{font-size:11px;font-family:var(--f-data);padding:1px 6px;border-radius:999px;background:var(--ok-soft);color:var(--ok)}
-.chip[aria-pressed="true"] .tag{background:var(--sheet)}
-.pageview{position:relative;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;max-width:100%}
-.pageview canvas{display:block;max-width:100%}
-.pageview .hl{position:absolute;border:2px solid var(--pen);background:rgba(35,64,168,.12);border-radius:3px;pointer-events:none}
-.pageview.pick{cursor:crosshair}
-.detail{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff;display:block}
-.pad-wrap{position:relative;border:1px solid var(--line);border-radius:var(--r);background:#fff;overflow:hidden}
-#pad{display:block;width:100%;height:210px;touch-action:none;cursor:crosshair}
-.pad-wrap .base{position:absolute;left:8%;right:8%;bottom:48px;border-bottom:1px solid #C7CDD9;pointer-events:none}
-.pad-wrap .hint{position:absolute;left:0;right:0;bottom:22px;text-align:center;font-size:12px;color:#8B93A4;pointer-events:none}
-.pad-wrap .x{position:absolute;left:8%;bottom:52px;font-size:18px;color:#8B93A4;pointer-events:none}
 .note{font-size:13px;color:var(--muted);margin:0}
 .status{font-size:14px;padding:10px 12px;border-radius:8px;background:var(--paper);border:1px solid var(--line)}
 .status.ok{background:var(--ok-soft);border-color:transparent;color:var(--ok)}
 .status.warn{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
 .status.bad{border-color:var(--bad);color:var(--bad)}
-.result{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:var(--r);background:var(--ok-soft)}
-.result b{color:var(--ok)}
-.empty{display:flex;flex-direction:column;gap:6px;padding:16px;border-radius:var(--r);background:var(--paper);color:var(--muted);font-size:14px}
-table.roles{width:100%;border-collapse:collapse;font-size:14px}
-table.roles td,table.roles th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-table.roles th{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
-.pill{display:inline-block;font-size:12px;font-family:var(--f-data);padding:2px 8px;border-radius:999px}
+.pill{display:inline-block;font-size:12px;font-family:var(--f-data);padding:2px 8px;border-radius:999px;white-space:nowrap}
 .pill.ok{background:var(--ok-soft);color:var(--ok)}
 .pill.wait{background:var(--warn-soft);color:var(--warn)}
-.files{display:flex;flex-direction:column;gap:6px}
-.file{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px}
-.file .nm{flex:1 1 200px;min-width:0;word-break:break-word}
-.file .rs{color:var(--muted);font-size:12px}
-.tablewrap{overflow-x:auto}
+.signers{display:flex;flex-direction:column;gap:10px}
+.signer{border:1px solid var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:10px}
+.signer .top{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.signer .top b{font-size:15px}
+.signer .done{font-size:13px;color:var(--muted)}
+.signer .done img{display:block;max-height:46px;margin-top:4px;background:#fff;border-radius:4px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px 16px;font-size:14px}
+.facts div span{display:block;font-size:12px;color:var(--muted)}
+ul.pend{margin:0;padding-left:18px;font-size:14px}
+.result{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:var(--r);background:var(--ok-soft)}
+.result b{color:var(--ok)}
+details summary{cursor:pointer;font-size:14px;color:var(--muted)}
+details[open] summary{margin-bottom:8px}
+/* tela de quem assina */
+.s-wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.s-hello{font-size:28px;font-weight:700;line-height:1.15;margin:0;text-wrap:balance}
+.s-sub{font-size:17px;margin:0;color:var(--muted)}
+.s-doc{font-size:16px}
+.s-doc .facts{font-size:16px}
+.s-big label.f{font-size:16px;color:var(--ink);font-weight:600}
+.s-big input[type=text]{font-size:19px;padding:12px 14px}
+.pad-wrap{position:relative;border:2px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}
+#pad{display:block;width:100%;height:240px;touch-action:none;cursor:crosshair}
+.pad-wrap .base{position:absolute;left:7%;right:7%;bottom:56px;border-bottom:2px solid #C7CDD9;pointer-events:none}
+.pad-wrap .x{position:absolute;left:7%;bottom:60px;font-size:22px;color:#8B93A4;pointer-events:none}
+.pad-wrap .hint{position:absolute;left:0;right:0;bottom:22px;text-align:center;font-size:15px;color:#8B93A4;pointer-events:none}
+.pad-wrap.has .hint{visibility:hidden}
+.s-send{font-size:20px;padding:16px;border-radius:12px;width:100%}
+.s-clear{font-size:16px;padding:10px 16px}
+.s-done{text-align:center;display:flex;flex-direction:column;gap:14px;align-items:center;padding-block:24px}
+.s-done .ico{width:72px;height:72px;border-radius:50%;background:var(--ok-soft);color:var(--ok);display:grid;place-items:center;font-size:40px;font-weight:700}
+.s-done p{font-size:18px;margin:0;max-width:30ch}
 footer{font-size:12px;color:var(--muted);text-align:center}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 
-<div class="wrap">
+<!-- ===================== PAINEL (Junior) ===================== -->
+<div class="wrap" id="panel">
   <header>
-    <div class="eyebrow" id="eyebrow">CCB · ADM Vinhedo · Relatório de Manutenção</div>
-    <h1 id="h1">Assinatura remota do relatório mensal</h1>
-    <p class="lede" id="lede">Envie o PDF pelo WhatsApp, cada pessoa assina no celular e devolve. Aqui você junta as assinaturas num PDF final.</p>
+    <div class="eyebrow">CCB · ADM Vinhedo · Relatório de Manutenção</div>
+    <h1>Assinatura remota do relatório mensal</h1>
+    <p class="lede">Carregue o PDF do mês, mande o pedido pelo WhatsApp e cada pessoa só toca no link e assina. As assinaturas voltam por link e o PDF final sai pronto.</p>
   </header>
 
-  <nav class="tabs" role="tablist" id="tabs">
-    <button role="tab" id="tab-enviar" aria-selected="true" data-tab="enviar"><span class="n">1</span><span>Enviar<small>Mensagem com link para quem assina</small></span></button>
-    <button role="tab" id="tab-assinar" aria-selected="false" data-tab="assinar"><span class="n">2</span><span>Assinar<small>Desenhar a assinatura no PDF</small></span></button>
-    <button role="tab" id="tab-juntar" aria-selected="false" data-tab="juntar"><span class="n">3</span><span>Juntar<small>PDF final com todas as assinaturas</small></span></button>
-  </nav>
+  <div class="status" id="p-banner" hidden></div>
 
-  <!-- ENVIAR -->
-  <section class="panel" id="p-enviar" role="tabpanel">
-    <div class="step">
-      <h2><span class="k">A</span> Quem vai assinar</h2>
-      <div class="row">
-        <label class="f">Função no relatório
-          <select id="s-role"><option>Ministério</option><option selected>Voluntário</option><option>Coordenador</option></select>
-        </label>
-        <label class="f">Competência
-          <input type="text" id="s-comp" class="mono" placeholder="09/2026">
-        </label>
-        <label class="f">WhatsApp da pessoa (opcional)
-          <input type="tel" id="s-phone" placeholder="19 99999-0000">
-        </label>
-      </div>
-      <label class="f">Endereço da página de assinatura (onde a pessoa abre e assina)
-        <input type="url" id="s-link" class="mono" placeholder="https://gilbertoppcp-arch.github.io/assinatura-ccb/">
+  <section class="card">
+    <h2><span class="k">1</span> Relatório do mês</h2>
+    <label class="drop" id="p-drop">
+      <input type="file" id="p-file" accept="application/pdf,.pdf">
+      <span class="btn">Escolher PDF</span>
+      <span class="meta" id="p-meta"><b>Nenhum relatório carregado</b><span>O PDF fica guardado neste navegador até você trocar.</span></span>
+    </label>
+    <div id="p-facts" hidden></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="k">2</span> Seus dados</h2>
+    <div class="row">
+      <label class="f">Seu WhatsApp (para receber as assinaturas)
+        <input type="tel" id="p-me" placeholder="19 99999-0000">
       </label>
-      <p class="note">A página de assinatura é este mesmo arquivo publicado no seu GitHub Pages, aberta fora do Claude. Assim a pessoa não precisa de conta.</p>
-    </div>
-    <div class="step">
-      <h2><span class="k">B</span> Mensagem</h2>
-      <textarea id="s-msg" aria-label="Mensagem para enviar"></textarea>
-      <label class="drop" id="s-drop">
-        <input type="file" id="s-file" accept="application/pdf,.pdf">
-        <span class="btn">Escolher PDF do relatório</span>
-        <span class="meta" id="s-meta"><b>PDF para anexar</b><span>Escolha o relatório do mês para enviar junto com a mensagem.</span></span>
+      <label class="f">Endereço da página de assinatura
+        <input type="url" id="p-base" class="mono" placeholder="https://gilbertoppcp-arch.github.io/assinatura-ccb/">
       </label>
-      <div class="btns">
-        <button class="btn primary" id="s-share" hidden>Enviar PDF + mensagem</button>
-        <button class="btn" id="s-copy">Copiar mensagem</button>
-        <a class="btn" id="s-wa" href="https://wa.me/" target="_blank" rel="noopener">Abrir no WhatsApp (só texto)</a>
-      </div>
-      <p class="note" id="s-hint">O link do WhatsApp leva só o texto. Para anexar o PDF automaticamente, use "Enviar PDF + mensagem" e escolha o WhatsApp na lista.</p>
-      <div class="status" id="s-status" hidden></div>
     </div>
   </section>
 
-  <!-- ASSINAR -->
-  <section class="panel" id="p-assinar" role="tabpanel" hidden>
-    <div class="step">
-      <h2><span class="k">1</span> Escolha o PDF recebido</h2>
-      <label class="drop" id="a-drop">
-        <input type="file" id="a-file" accept="application/pdf,.pdf">
-        <span class="btn">Selecionar PDF</span>
-        <span class="meta" id="a-meta"><b>Nenhum arquivo escolhido</b><span>No iPhone, salve o PDF do WhatsApp em Arquivos antes.</span></span>
-      </label>
-    </div>
-
-    <div class="step" id="a-step-field" hidden>
-      <h2><span class="k">2</span> Sua função</h2>
-      <div class="chips" id="a-chips"></div>
-      <div id="a-manual" hidden>
-        <p class="note">Não encontrei campos de assinatura neste PDF. Toque na página onde a assinatura deve ficar.</p>
-        <div class="row">
-          <label class="f">Página <select id="a-page"></select></label>
-          <label class="f">Função <input type="text" id="a-role-free" placeholder="Ex.: Coordenador"></label>
-        </div>
-      </div>
-      <div class="pageview" id="a-pageview"><canvas id="a-canvas"></canvas><div class="hl" id="a-hl" hidden></div></div>
-    </div>
-
-    <div class="step" id="a-step-sign" hidden>
-      <h2><span class="k">3</span> Nome e assinatura</h2>
-      <label class="f">Nome completo
-        <input type="text" id="a-name" autocomplete="name" placeholder="Seu nome">
-      </label>
-      <div class="pad-wrap">
-        <canvas id="pad" aria-label="Área para assinar"></canvas>
-        <span class="x">×</span><div class="base"></div><div class="hint">Assine com o dedo ou o mouse</div>
-      </div>
-      <div class="btns"><button class="btn" id="a-clear">Limpar assinatura</button></div>
-      <p class="note">Como vai ficar no relatório:</p>
-      <canvas class="detail" id="a-detail"></canvas>
-    </div>
-
-    <div class="step" id="a-step-go" hidden>
-      <div class="btns"><button class="btn primary" id="a-go">Gerar PDF assinado</button></div>
-      <div class="status" id="a-status" hidden></div>
-      <div class="result" id="a-result" hidden></div>
-    </div>
+  <section class="card">
+    <h2><span class="k">3</span> Quem assina</h2>
+    <p class="note">Toque em "Pedir pelo WhatsApp". A pessoa recebe um link, assina com o dedo e a assinatura volta para você. Toque no link que ela devolver para registrar.</p>
+    <div class="signers" id="p-signers"><div class="note">Carregue o relatório para ver as funções.</div></div>
+    <details>
+      <summary>Recebeu a assinatura mas o link não abriu aqui? Cole a mensagem</summary>
+      <textarea id="p-paste" placeholder="Cole aqui a mensagem que a pessoa enviou"></textarea>
+      <div class="btns" style="margin-top:8px"><button class="btn" id="p-paste-go">Registrar assinatura</button></div>
+    </details>
   </section>
 
-  <!-- JUNTAR -->
-  <section class="panel" id="p-juntar" role="tabpanel" hidden>
-    <div class="step">
-      <h2><span class="k">1</span> Adicione os PDFs devolvidos</h2>
-      <label class="drop" id="j-drop">
-        <input type="file" id="j-file" accept="application/pdf,.pdf" multiple>
-        <span class="btn">Adicionar PDFs</span>
-        <span class="meta"><b>Pode escolher vários de uma vez</b><span>Os assinados por cada pessoa e, se quiser, o original.</span></span>
-      </label>
-      <div class="files" id="j-files"></div>
-    </div>
-    <div class="step">
-      <h2><span class="k">2</span> Situação das assinaturas</h2>
-      <div id="j-summary"><div class="empty"><b>Nada adicionado ainda</b>Quando os PDFs voltarem, adicione aqui. Cada função aparece como assinada ou pendente.</div></div>
-    </div>
-    <div class="step">
-      <div class="btns"><button class="btn primary" id="j-go" disabled>Gerar PDF final</button></div>
-      <div class="status" id="j-status" hidden></div>
-      <div class="result" id="j-result" hidden></div>
-    </div>
+  <section class="card">
+    <h2><span class="k">4</span> PDF final</h2>
+    <div class="btns"><button class="btn primary" id="p-final" disabled>Gerar PDF assinado</button><button class="btn" id="p-reset" hidden>Começar novo mês</button></div>
+    <div class="status" id="p-status" hidden></div>
+    <div class="result" id="p-result" hidden></div>
   </section>
 
   <footer>Os PDFs ficam só no seu aparelho; nada é enviado para servidor. · Criador &amp; Desenvolvedor Sistema de Análise</footer>
+</div>
+
+<!-- ===================== QUEM ASSINA ===================== -->
+<div class="s-wrap" id="signer" hidden>
+  <div id="s-form" style="display:flex;flex-direction:column;gap:16px">
+    <div>
+      <p class="s-hello">A Paz de Deus!</p>
+      <p class="s-sub" id="s-sub">Falta só a sua assinatura no relatório.</p>
+    </div>
+    <section class="card s-doc">
+      <div class="facts" id="s-facts"></div>
+      <div id="s-pend"></div>
+    </section>
+    <section class="card s-big">
+      <label class="f">Seu nome
+        <input type="text" id="s-name" autocomplete="name" placeholder="Escreva seu nome">
+      </label>
+      <div class="pad-wrap" id="pad-wrap">
+        <canvas id="pad" aria-label="Assine aqui"></canvas>
+        <span class="x">×</span><div class="base"></div><div class="hint">Assine aqui com o dedo</div>
+      </div>
+      <button class="btn s-clear" id="s-clear">Apagar e assinar de novo</button>
+    </section>
+    <div class="status" id="s-status" hidden></div>
+    <button class="btn wa s-send" id="s-send">Enviar assinatura</button>
+  </div>
+  <div class="s-done" id="s-done" hidden>
+    <div class="ico">✓</div>
+    <p id="s-done-txt">Agora toque em <b>Enviar</b> no WhatsApp.</p>
+    <a class="btn wa s-send" id="s-wa" href="#" target="_blank" rel="noopener">Abrir WhatsApp</a>
+    <p class="note">Se o WhatsApp não abriu, toque no botão verde acima.</p>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -217,361 +180,254 @@ footer{font-size:12px;color:var(--muted);text-align:center}
 <script>
 (function(){
 const $=s=>document.querySelector(s);
-const META_KEY='CCBAssinaturas';
 const inClaude=!!(window.claude&&typeof window.claude.use==='function');
 try{pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'}catch(e){}
-
-const store={get(k,d){try{const v=localStorage.getItem('ccbsig:'+k);return v==null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem('ccbsig:'+k,v)}catch(e){}}};
+const DEFAULT_BASE='https://gilbertoppcp-arch.github.io/assinatura-ccb/';
+const LS={get(k,d){try{const v=localStorage.getItem('ccb2:'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('ccb2:'+k,JSON.stringify(v));return true}catch(e){return false}},del(k){try{localStorage.removeItem('ccb2:'+k)}catch(e){}}};
 const norm=s=>(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
 const pad2=n=>String(n).padStart(2,'0');
-const fmtDate=iso=>{const d=new Date(iso);return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`};
-const b64ToBytes=b=>Uint8Array.from(atob(b),c=>c.charCodeAt(0));
-const toHex=bytes=>{let s='';for(const b of bytes)s+=b.toString(16).padStart(2,'0');return s};
+const fmtDate=ms=>{const d=new Date(ms);return `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const digits=p=>{const d=(p||'').replace(/\D/g,'');return d?(d.length<=11?'55'+d:d):''};
 function setStatus(el,txt,kind){el.hidden=!txt;el.textContent=txt||'';el.className='status'+(kind?' '+kind:'')}
-function prevMonth(){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return pad2(d.getMonth()+1)+'/'+d.getFullYear()}
+const b64u={enc(bytes){let s='';for(let i=0;i<bytes.length;i++)s+=String.fromCharCode(bytes[i]);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')},
+  dec(str){str=str.replace(/-/g,'+').replace(/_/g,'/');while(str.length%4)str+='=';const b=atob(str);return Uint8Array.from(b,c=>c.charCodeAt(0))}};
+const bytesToB64=b=>{let s='';for(let i=0;i<b.length;i+=8192)s+=String.fromCharCode.apply(null,b.subarray(i,i+8192));return btoa(s)};
+const b64ToBytes=b=>Uint8Array.from(atob(b),c=>c.charCodeAt(0));
 
-/* ---------- modo (responsável x quem assina) ---------- */
-let qsRole=null;try{qsRole=new URLSearchParams(location.search).get('papel')}catch(e){}
-const signerMode=!!qsRole||(!inClaude&&/assinar/.test(location.hash));
-function showTab(t){
-  for(const b of document.querySelectorAll('nav.tabs button')){b.setAttribute('aria-selected',String(b.dataset.tab===t))}
-  for(const id of ['enviar','assinar','juntar']) $('#p-'+id).hidden=id!==t;
-  if(t==='assinar') requestAnimationFrame(()=>{sizePad();drawDetail()});
+/* ---------- traços da assinatura: compactar para caber num link ---------- */
+function rdp(pts,eps){
+  if(pts.length<3)return pts.slice();
+  const [a,b]=[pts[0],pts[pts.length-1]];let idx=-1,dmax=0;
+  const dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy)||1;
+  for(let i=1;i<pts.length-1;i++){const d=Math.abs(dy*pts[i][0]-dx*pts[i][1]+b[0]*a[1]-b[1]*a[0])/L;if(d>dmax){dmax=d;idx=i}}
+  if(dmax>eps){const l=rdp(pts.slice(0,idx+1),eps),r=rdp(pts.slice(idx),eps);return l.slice(0,-1).concat(r)}
+  return [a,b];
 }
-document.querySelectorAll('nav.tabs button').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
-if(signerMode){
-  $('#tabs').hidden=true;
-  $('#h1').textContent=qsRole?`Assinar como ${qsRole}`:'Assinar relatório';
-  $('#lede').textContent='Escolha o PDF que você recebeu, desenhe sua assinatura e devolva o PDF assinado para quem te enviou.';
-  showTab('assinar');
-} else if(/juntar|assinar/.test(location.hash)) showTab(location.hash.slice(1));
-
-/* ---------- PDF helpers ---------- */
-async function loadPdfjs(bytes){return pdfjsLib.getDocument({data:bytes.slice()}).promise}
-async function pdfFacts(doc){
-  const fields=[];let comp=null;
-  for(let p=1;p<=doc.numPages;p++){
-    const page=await doc.getPage(p);const vp=page.getViewport({scale:1});
-    const tc=await page.getTextContent();
-    const items=tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({s:i.str.trim(),x:i.transform[4],y:i.transform[5],w:i.width,cx:i.transform[4]+i.width/2}));
-    if(!comp){const m=items.map(i=>i.s).join(' ').match(/Compet[êe]ncia\s*(\d{2}\/\d{4})/i);if(m)comp=m[1]}
-    for(const a of items.filter(i=>/^assinatura$/i.test(i.s))){
-      const below=items.filter(i=>i!==a&&i.y<a.y&&a.y-i.y<45&&Math.abs(i.cx-a.cx)<70&&!/^(nome|assinatura)$/i.test(i.s)).sort((m,n)=>(a.y-m.y)-(a.y-n.y));
-      const nome=items.filter(i=>/^nome$/i.test(i.s)&&i.y>a.y&&i.y-a.y<70&&Math.abs(i.cx-a.cx)<45).sort((m,n)=>m.y-n.y)[0];
-      fields.push({page:p-1,role:below[0]?below[0].s:`Assinatura ${fields.length+1}`,pageW:vp.width,pageH:vp.height,
-        box:{x:a.cx-82,y:a.y+11.5,w:164,h:24},namePos:{x:a.cx,y:nome?nome.y+12.5:a.y+48}});
-    }
-  }
-  return {fields,comp,numPages:doc.numPages};
+function encodeStrokes(strokes,lineCss){
+  const pts=strokes.flat();let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const[x,y]of pts){x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y)}
+  const f=320/Math.max(x1-x0,y1-y0,1);const out=[];
+  const push=v=>{while(v>127){out.push((v&127)|128);v>>>=7}out.push(v)};const zz=v=>v<0?(-v*2-1):v*2;
+  const S=strokes.map(s=>rdp(s,0.9).map(p=>[Math.round((p[0]-x0)*f),Math.round((p[1]-y0)*f)]).filter((p,i,a)=>!i||p[0]!==a[i-1][0]||p[1]!==a[i-1][1]));
+  push(S.length);
+  for(const s of S){push(s.length);let px=0,py=0;for(const[x,y]of s){push(zz(x-px));push(zz(y-py));px=x;py=y}}
+  return {s:b64u.enc(Uint8Array.from(out)),lw:Math.round(lineCss*f*10)/10};
 }
-function readSigs(libDoc){
-  try{const v=libDoc.getInfoDict().lookup(PDFLib.PDFName.of(META_KEY));if(!v)return[];
-    const txt=new TextDecoder().decode(v.asBytes());const j=JSON.parse(txt);return Array.isArray(j.sigs)?j.sigs:[]}catch(e){return[]}
+function decodeStrokes(code){
+  const b=b64u.dec(code);let i=0;const rd=()=>{let v=0,sh=0,c;do{c=b[i++];v+=(c&127)*Math.pow(2,sh);sh+=7}while(c&128);return v};
+  const unz=v=>(v%2)?-(v+1)/2:v/2;const n=rd();const S=[];
+  for(let k=0;k<n;k++){const m=rd();const s=[];let px=0,py=0;for(let j=0;j<m;j++){px+=unz(rd());py+=unz(rd());s.push([px,py])}S.push(s)}
+  return S;
 }
-function writeSigs(libDoc,sigs){
-  libDoc.getInfoDict().set(PDFLib.PDFName.of(META_KEY),PDFLib.PDFHexString.of(toHex(new TextEncoder().encode(JSON.stringify({v:1,sigs})))));
-  libDoc.setModificationDate(new Date());
-}
-async function stamp(libDoc,sigs){
-  const font=await libDoc.embedFont(PDFLib.StandardFonts.Helvetica);
-  const safe=t=>{try{font.widthOfTextAtSize(t,8);return t}catch(e){return t.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\x20-\x7E]/g,'')}};
-  for(const s of sigs){
-    const page=libDoc.getPage(s.page);
-    const img=await libDoc.embedPng(b64ToBytes(s.png));
-    const r=Math.min(s.box.w/img.width,s.box.h/img.height);const w=img.width*r,h=img.height*r;
-    page.drawImage(img,{x:s.box.x+(s.box.w-w)/2,y:s.box.y,width:w,height:h});
-    const label=safe(`${s.name}  ·  ${fmtDate(s.at)}`);
-    let size=8.5;while(font.widthOfTextAtSize(label,size)>s.box.w+8&&size>5)size-=.5;
-    page.drawText(label,{x:s.namePos.x-font.widthOfTextAtSize(label,size)/2,y:s.namePos.y,size,font,color:PDFLib.rgb(.1,.16,.42)});
-  }
-}
-
-/* ---------- entregar arquivo ---------- */
-async function offerFile(bytes,filename,box,extraNote){
-  const blob=new Blob([bytes],{type:'application/pdf'});
-  box.innerHTML='';box.hidden=false;
-  const t=document.createElement('div');t.innerHTML=`<b>PDF pronto.</b> <span class="mono"></span>`;t.querySelector('span').textContent=filename;box.appendChild(t);
-  const btns=document.createElement('div');btns.className='btns';box.appendChild(btns);
-  const msg=document.createElement('div');msg.className='note';box.appendChild(msg);
-  if(extraNote){const n=document.createElement('p');n.className='note';n.textContent=extraNote;box.appendChild(n)}
-  let file=null;try{file=new File([blob],filename,{type:'application/pdf'})}catch(e){}
-  if(!inClaude&&file&&navigator.canShare&&navigator.canShare({files:[file]})){
-    const sh=document.createElement('button');sh.className='btn primary';sh.textContent='Enviar pelo WhatsApp / compartilhar';
-    sh.onclick=async()=>{try{await navigator.share({files:[file],title:filename})}catch(e){if(e.name!=='AbortError')msg.textContent='Não foi possível abrir o compartilhamento. Use "Baixar PDF" e envie o arquivo pelo WhatsApp.'}};
-    btns.appendChild(sh);
-  }
-  const dl=document.createElement('button');dl.className='btn'+(btns.children.length?'':' primary');dl.textContent='Baixar PDF';
-  dl.onclick=async()=>{
-    if(inClaude){
-      const d=await window.claude.use('downloads');
-      if(d){try{await d.save({filename,data:blob});msg.textContent='Arquivo salvo.'}catch(e){msg.textContent=e&&e.code==='declined'?'Download cancelado.':'Não foi possível salvar aqui ('+(e&&e.code||'erro')+').'}return}
-      msg.textContent='Salvar não está disponível nesta visualização.';return;
-    }
-    const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
-    msg.textContent='Download iniciado. Envie o arquivo de volta pelo WhatsApp.';
-  };
-  btns.appendChild(dl);
-}
-
-/* ---------- ENVIAR ---------- */
-const sRole=$('#s-role'),sComp=$('#s-comp'),sPhone=$('#s-phone'),sLink=$('#s-link'),sMsg=$('#s-msg');
-sComp.value=store.get('comp',prevMonth());
-sLink.value=store.get('link',(!inClaude&&/^https?:/.test(location.protocol))?location.origin+location.pathname:'https://gilbertoppcp-arch.github.io/assinatura-ccb/');
-sPhone.value=store.get('phone:'+sRole.value,'');
-let msgTouched=false;
-function buildMsg(){
-  const role=sRole.value,link=(sLink.value||'').trim();
-  const url=link?link+(link.includes('?')?'&':'?')+'papel='+encodeURIComponent(role):'(link da página de assinatura)';
-  return `Olá! Segue em anexo o Relatório de Manutenção competência ${sComp.value||'—'} para sua assinatura como ${role}.\n\n1. Baixe o PDF anexo (no iPhone: toque no PDF > Compartilhar > Salvar em Arquivos).\n2. Abra este link: ${url}\n3. Toque em "Selecionar PDF" e escolha o relatório baixado. Escreva seu nome, assine com o dedo e toque em "Gerar PDF assinado".\n4. Toque em "Enviar pelo WhatsApp" e me devolva o PDF assinado por aqui.\n\nObrigado!`;
-}
-function refreshMsg(){
-  if(!msgTouched)sMsg.value=buildMsg();
-  const digits=(sPhone.value||'').replace(/\D/g,'');const full=digits?(digits.length<=11?'55'+digits:digits):'';
-  $('#s-wa').href=`https://wa.me/${full}?text=${encodeURIComponent(sMsg.value)}`;
-}
-sRole.addEventListener('change',()=>{msgTouched=false;sPhone.value=store.get('phone:'+sRole.value,'');refreshMsg()});
-sComp.addEventListener('input',()=>{msgTouched=false;store.set('comp',sComp.value);refreshMsg()});
-sLink.addEventListener('input',()=>{msgTouched=false;store.set('link',sLink.value.trim());refreshMsg()});
-sPhone.addEventListener('input',()=>{store.set('phone:'+sRole.value,sPhone.value);refreshMsg()});
-sMsg.addEventListener('input',()=>{msgTouched=true;refreshMsg()});
-$('#s-copy').addEventListener('click',async()=>{
-  try{await navigator.clipboard.writeText(sMsg.value);setStatus($('#s-status'),'Mensagem copiada. Cole no WhatsApp junto com o PDF.','ok')}
-  catch(e){sMsg.focus();sMsg.select();setStatus($('#s-status'),'Texto selecionado. Use Copiar do seu aparelho.','warn')}
-});
-refreshMsg();
-
-/* anexar PDF + mensagem via compartilhamento do sistema */
-let sendFile=null;
-const canShareFiles=f=>{try{return !inClaude&&!!navigator.canShare&&navigator.canShare({files:[f]})}catch(e){return false}};
-(function(){try{const probe=new File([new Uint8Array([37])],'t.pdf',{type:'application/pdf'});$('#s-share').hidden=!canShareFiles(probe)}catch(e){}})();
-if(inClaude)$('#s-hint').textContent='Dentro do Claude o compartilhamento de arquivo é bloqueado. Abra o painel pelo endereço do GitHub Pages para anexar o PDF automaticamente, ou anexe o PDF manualmente na conversa.';
-else if($('#s-share').hidden)$('#s-hint').textContent='Este navegador não compartilha arquivos. Envie a mensagem e anexe o PDF manualmente na conversa (clipe > Documento).';
-$('#s-file').addEventListener('change',async()=>{
-  const f=$('#s-file').files[0];if(!f)return;sendFile=f;
-  const meta=$('#s-meta');meta.innerHTML='<b></b><span>Pronto para enviar</span>';meta.querySelector('b').textContent=f.name;
-  try{const d=await loadPdfjs(new Uint8Array(await f.arrayBuffer()));const facts=await pdfFacts(d);
-    if(facts.comp){sComp.value=facts.comp;store.set('comp',facts.comp);msgTouched=false;refreshMsg();meta.querySelector('span').textContent='Competência '+facts.comp+' · pronto para enviar'}}catch(e){}
-});
-$('#s-share').addEventListener('click',async()=>{
-  const st=$('#s-status');
-  if(!sendFile)return setStatus(st,'Escolha primeiro o PDF do relatório.','bad');
-  try{await navigator.clipboard.writeText(sMsg.value)}catch(e){}
-  try{await navigator.share({files:[sendFile],text:sMsg.value,title:'Relatório de Manutenção '+(sComp.value||'')});
-    setStatus(st,'Enviado para o compartilhamento. Se a mensagem não apareceu junto do PDF, ela já está copiada: é só colar na conversa.','ok')}
-  catch(e){if(e.name!=='AbortError')setStatus(st,'Não foi possível compartilhar. Use "Abrir no WhatsApp" e anexe o PDF manualmente.','bad')}
-});
-
-/* ---------- ASSINAR ---------- */
-const A={bytes:null,name:'',pdf:null,facts:null,existing:[],field:null,manual:false,pageRender:null,detailBase:null,renderTok:0};
-const aFile=$('#a-file'),aDrop=$('#a-drop');
-['dragenter','dragover'].forEach(e=>aDrop.addEventListener(e,ev=>{ev.preventDefault();aDrop.classList.add('over')}));
-['dragleave','drop'].forEach(e=>aDrop.addEventListener(e,ev=>{ev.preventDefault();aDrop.classList.remove('over')}));
-aDrop.addEventListener('drop',ev=>{const f=ev.dataTransfer.files[0];if(f)openSignFile(f)});
-aFile.addEventListener('change',()=>{if(aFile.files[0])openSignFile(aFile.files[0])});
-$('#a-name').value=store.get('name','');
-
-async function openSignFile(f){
-  const meta=$('#a-meta');meta.innerHTML='<b></b><span>Lendo…</span>';meta.querySelector('b').textContent=f.name;
-  try{
-    A.bytes=new Uint8Array(await f.arrayBuffer());A.name=f.name;
-    A.pdf=await loadPdfjs(A.bytes);A.facts=await pdfFacts(A.pdf);
-    const lib=await PDFLib.PDFDocument.load(A.bytes,{ignoreEncryption:true});A.existing=readSigs(lib);
-  }catch(e){meta.innerHTML='<b>Não consegui abrir este arquivo</b><span>Confira se é o PDF do relatório e tente de novo.</span>';return}
-  meta.querySelector('span').textContent=`${A.facts.numPages} folha(s)`+(A.facts.comp?` · competência ${A.facts.comp}`:'')+(A.existing.length?` · já assinado por: ${A.existing.map(s=>s.role).join(', ')}`:'');
-  $('#a-step-field').hidden=false;$('#a-step-sign').hidden=false;$('#a-step-go').hidden=false;
-  $('#a-result').hidden=true;setStatus($('#a-status'),'');
-  buildChips();sizePad();
-}
-function buildChips(){
-  const chips=$('#a-chips');chips.innerHTML='';
-  const fs=A.facts.fields;A.manual=!fs.length;$('#a-manual').hidden=!A.manual;$('#a-pageview').classList.toggle('pick',A.manual);
-  if(A.manual){
-    const sel=$('#a-page');sel.innerHTML='';for(let i=0;i<A.facts.numPages;i++){const o=document.createElement('option');o.value=i;o.textContent='Folha '+(i+1);sel.appendChild(o)}
-    sel.value=A.facts.numPages-1;A.field=null;$('#a-role-free').value=qsRole||'';renderPageView(+sel.value);return;
-  }
-  let pick=fs.find(f=>qsRole&&norm(f.role)===norm(qsRole))||fs.find(f=>!A.existing.some(s=>norm(s.role)===norm(f.role)))||fs[0];
-  fs.forEach(f=>{
-    const b=document.createElement('button');b.className='chip';b.type='button';b.textContent=f.role;
-    if(A.existing.some(s=>norm(s.role)===norm(f.role))){const t=document.createElement('span');t.className='tag';t.textContent='assinado';b.appendChild(t)}
-    b.setAttribute('aria-pressed',String(f===pick));
-    b.onclick=()=>{chips.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed','false'));b.setAttribute('aria-pressed','true');selectField(f)};
-    chips.appendChild(b);
-  });
-  selectField(pick);
-}
-async function selectField(f){A.field=f;await renderPageView(f.page)}
-$('#a-page').addEventListener('change',e=>{A.field=null;renderPageView(+e.target.value)});
-$('#a-role-free').addEventListener('input',()=>{if(A.field)A.field.role=$('#a-role-free').value.trim()||'Assinatura'});
-
-async function renderPageView(pi){
-  const tok=++A.renderTok;const view=$('#a-pageview'),cv=$('#a-canvas');
-  const page=await A.pdf.getPage(pi+1);const vp1=page.getViewport({scale:1});
-  const cssW=Math.max(260,view.parentElement.clientWidth);const sc=cssW/vp1.width;const dpr=Math.min(window.devicePixelRatio||1,2);
-  const vp=page.getViewport({scale:sc*dpr});
-  const off=document.createElement('canvas');off.width=vp.width;off.height=vp.height;
-  await page.render({canvasContext:off.getContext('2d'),viewport:vp}).promise;
-  if(tok!==A.renderTok)return;
-  cv.width=off.width;cv.height=off.height;cv.style.width=cssW+'px';cv.style.height=(vp1.height*sc)+'px';cv.getContext('2d').drawImage(off,0,0);
-  A.pageRender={pi,sc,pageW:vp1.width,pageH:vp1.height};
-  placeHL();
-  await buildDetailBase(page,vp1);
-  drawDetail();
-}
-function placeHL(){
-  const hl=$('#a-hl'),f=A.field,r=A.pageRender;
-  if(!f||!r||f.page!==r.pi){hl.hidden=true;return}
-  hl.hidden=false;hl.style.left=(f.box.x*r.sc)+'px';hl.style.top=((r.pageH-(f.box.y+f.box.h))*r.sc)+'px';
-  hl.style.width=(f.box.w*r.sc)+'px';hl.style.height=(f.box.h*r.sc)+'px';
-}
-$('#a-pageview').addEventListener('click',async ev=>{
-  if(!A.manual||!A.pageRender)return;
-  const rect=$('#a-canvas').getBoundingClientRect();const r=A.pageRender;
-  const px=(ev.clientX-rect.left)/r.sc,py=r.pageH-(ev.clientY-rect.top)/r.sc;
-  A.field={page:r.pi,role:$('#a-role-free').value.trim()||'Assinatura',pageW:r.pageW,pageH:r.pageH,box:{x:px-82,y:py-12,w:164,h:24},namePos:{x:px,y:py-22}};
-  placeHL();const page=await A.pdf.getPage(r.pi+1);await buildDetailBase(page,page.getViewport({scale:1}));drawDetail();
-});
-
-/* detalhe ampliado do campo */
-let detailRegion=null;
-async function buildDetailBase(page,vp1){
-  const f=A.field;if(!f||f.page!==A.pageRender.pi){A.detailBase=null;drawDetail();return}
-  const x0=Math.max(0,f.box.x-50),x1=Math.min(vp1.width,f.box.x+f.box.w+50);
-  const yTop=Math.min(vp1.height,f.box.y+f.box.h+40),yBot=Math.max(0,Math.min(f.namePos.y,f.box.y)-26);
-  detailRegion={x0,x1,yTop,yBot};
-  const S=4;const vp=page.getViewport({scale:S});
-  const off=document.createElement('canvas');off.width=vp.width;off.height=vp.height;
-  await page.render({canvasContext:off.getContext('2d'),viewport:vp}).promise;
-  const c=document.createElement('canvas');c.width=Math.round((x1-x0)*S);c.height=Math.round((yTop-yBot)*S);
-  c.getContext('2d').drawImage(off,x0*S,(vp1.height-yTop)*S,c.width,c.height,0,0,c.width,c.height);
-  A.detailBase={canvas:c,S};
-}
-function drawDetail(){
-  const cv=$('#a-detail');const B=A.detailBase,f=A.field;
-  if(!B||!f||$('#p-assinar').hidden){cv.hidden=!B;return}
-  cv.hidden=false;const S=B.S;cv.width=B.canvas.width;cv.height=B.canvas.height;
-  const ctx=cv.getContext('2d');ctx.drawImage(B.canvas,0,0);
-  const {x0,yTop}=detailRegion;const X=x=>(x-x0)*S,Y=y=>(yTop-y)*S;
-  const sig=exportSig();
-  if(sig){const r=Math.min(f.box.w/sig.w,f.box.h/sig.h);const w=sig.w*r,h=sig.h*r;ctx.drawImage(sig.canvas,X(f.box.x+(f.box.w-w)/2),Y(f.box.y+h),w*S,h*S)}
-  else{ctx.strokeStyle='rgba(35,64,168,.7)';ctx.setLineDash([6,5]);ctx.lineWidth=2;ctx.strokeRect(X(f.box.x),Y(f.box.y+f.box.h),f.box.w*S,f.box.h*S);ctx.setLineDash([])}
-  const nm=$('#a-name').value.trim();
-  if(nm){const label=`${nm}  ·  ${fmtDate(new Date().toISOString())}`;let size=8.5;ctx.font=`${size*S}px Helvetica, Arial, sans-serif`;
-    while(ctx.measureText(label).width>(f.box.w+8)*S&&size>5){size-=.5;ctx.font=`${size*S}px Helvetica, Arial, sans-serif`}
-    ctx.fillStyle='rgb(26,41,107)';ctx.textAlign='center';ctx.fillText(label,X(f.namePos.x),Y(f.namePos.y))}
-}
-
-/* pad de assinatura */
-const pad=$('#pad');let strokes=[],cur=null;
-function sizePad(){
-  const r=pad.getBoundingClientRect();if(!r.width)return;const dpr=Math.min(window.devicePixelRatio||1,3);
-  pad.width=Math.round(r.width*dpr);pad.height=Math.round(r.height*dpr);redrawPad();
-}
-function redrawPad(){
-  const r=pad.getBoundingClientRect();const ctx=pad.getContext('2d');const k=pad.width/(r.width||1);
-  ctx.setTransform(k,0,0,k,0,0);ctx.clearRect(0,0,r.width,r.height);drawStrokes(ctx,1,0,0);
-}
-function drawStrokes(ctx,scale,ox,oy){
-  ctx.strokeStyle='#1A2A6C';ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=2.6*scale;
+function drawStrokes(ctx,strokes,scale,ox,oy,lw,color){
+  ctx.strokeStyle=color||'#1A2A6C';ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=lw*scale;
   for(const s of strokes){ctx.beginPath();s.forEach((p,i)=>{const x=(p[0]-ox)*scale,y=(p[1]-oy)*scale;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
     if(s.length===1){const x=(s[0][0]-ox)*scale,y=(s[0][1]-oy)*scale;ctx.lineTo(x+.1,y+.1)}ctx.stroke()}
 }
-const ptOf=ev=>{const r=pad.getBoundingClientRect();return[ev.clientX-r.left,ev.clientY-r.top]};
-pad.addEventListener('pointerdown',ev=>{ev.preventDefault();pad.setPointerCapture(ev.pointerId);cur=[ptOf(ev)];strokes.push(cur);redrawPad()});
-pad.addEventListener('pointermove',ev=>{if(!cur)return;ev.preventDefault();const evs=ev.getCoalescedEvents?ev.getCoalescedEvents():[ev];for(const e of evs)cur.push(ptOf(e));redrawPad()});
-const endStroke=()=>{if(cur){cur=null;drawDetail()}};
-pad.addEventListener('pointerup',endStroke);pad.addEventListener('pointercancel',endStroke);
-$('#a-clear').addEventListener('click',()=>{strokes=[];redrawPad();drawDetail()});
-$('#a-name').addEventListener('input',()=>{store.set('name',$('#a-name').value);drawDetail()});
-window.addEventListener('resize',()=>{sizePad();if(A.pageRender)renderPageView(A.pageRender.pi)});
-function exportSig(){
-  const pts=strokes.flat();if(pts.length<3)return null;
-  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;for(const[x,y]of pts){x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y)}
-  const p=6;x0-=p;y0-=p;x1+=p;y1+=p;const w=x1-x0,h=y1-y0;const sc=Math.min(3,700/w);
-  const c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*sc));c.height=Math.max(1,Math.round(h*sc));
-  drawStrokes(c.getContext('2d'),sc,x0,y0);return{canvas:c,w:c.width,h:c.height};
+function strokesToCanvas(strokes,lw,width){
+  const pts=strokes.flat();let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const[x,y]of pts){x0=Math.min(x0,x);y0=Math.min(y0,y);x1=Math.max(x1,x);y1=Math.max(y1,y)}
+  const pad=lw;x0-=pad;y0-=pad;x1+=pad;y1+=pad;const sc=width/Math.max(x1-x0,1);
+  const c=document.createElement('canvas');c.width=Math.round((x1-x0)*sc);c.height=Math.max(1,Math.round((y1-y0)*sc));
+  drawStrokes(c.getContext('2d'),strokes,sc,x0,y0,lw);return c;
 }
+const packPayload=o=>b64u.enc(new TextEncoder().encode(JSON.stringify(o)));
+const unpackPayload=s=>JSON.parse(new TextDecoder().decode(b64u.dec(s)));
 
-$('#a-go').addEventListener('click',async()=>{
-  const st=$('#a-status');const nm=$('#a-name').value.trim();const sig=exportSig();
-  if(!A.bytes)return setStatus(st,'Escolha o PDF primeiro.','bad');
-  if(!A.field)return setStatus(st,A.manual?'Toque na página para marcar onde vai a assinatura.':'Escolha sua função.','bad');
-  if(A.manual){A.field.role=$('#a-role-free').value.trim()||'Assinatura'}
-  if(!nm)return setStatus(st,'Escreva seu nome completo.','bad');
-  if(!sig)return setStatus(st,'Desenhe sua assinatura no quadro.','bad');
-  setStatus(st,'Gerando PDF…');$('#a-go').disabled=true;
-  try{
-    const lib=await PDFLib.PDFDocument.load(A.bytes,{ignoreEncryption:true});
-    const f=A.field;const entry={role:f.role,name:nm,at:new Date().toISOString(),page:f.page,box:f.box,namePos:f.namePos,png:sig.canvas.toDataURL('image/png').split(',')[1]};
-    await stamp(lib,[entry]);
-    const all=readSigs(lib).filter(s=>norm(s.role)!==norm(f.role));all.push(entry);writeSigs(lib,all);
-    const out=await lib.save();
-    const comp=(A.facts.comp||'').replace('/','-');
-    const fname=`Relatorio Manutencao ${comp||''} - assinado ${f.role}.pdf`.replace(/\s+/g,' ');
-    setStatus(st,'');await offerFile(out,fname,$('#a-result'),'Devolva este PDF para quem te enviou o relatório.');
-  }catch(e){setStatus(st,'Não foi possível gerar o PDF ('+(e&&e.message||e)+').','bad')}
-  finally{$('#a-go').disabled=false}
-});
-
-/* ---------- JUNTAR ---------- */
-const J={files:[],base:0};
-const jDrop=$('#j-drop'),jFile=$('#j-file');
-['dragenter','dragover'].forEach(e=>jDrop.addEventListener(e,ev=>{ev.preventDefault();jDrop.classList.add('over')}));
-['dragleave','drop'].forEach(e=>jDrop.addEventListener(e,ev=>{ev.preventDefault();jDrop.classList.remove('over')}));
-jDrop.addEventListener('drop',ev=>addMerge([...ev.dataTransfer.files]));
-jFile.addEventListener('change',()=>{addMerge([...jFile.files]);jFile.value=''});
-async function addMerge(list){
-  for(const f of list){
-    if(!/pdf$/i.test(f.name)&&f.type!=='application/pdf')continue;
-    try{
-      const bytes=new Uint8Array(await f.arrayBuffer());
-      const lib=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true});
-      const pdf=await loadPdfjs(bytes);const facts=await pdfFacts(pdf);
-      J.files.push({name:f.name,bytes,sigs:readSigs(lib),facts});
-    }catch(e){setStatus($('#j-status'),`Não consegui ler "${f.name}".`,'bad')}
+/* ---------- leitura do PDF ---------- */
+async function pdfFacts(bytes){
+  const doc=await pdfjsLib.getDocument({data:bytes.slice()}).promise;
+  const fields=[];let comp=null,casa=null;const pend=[];
+  for(let p=1;p<=doc.numPages;p++){
+    const page=await doc.getPage(p);const tc=await page.getTextContent();
+    const items=tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({s:i.str.trim(),x:i.transform[4],y:i.transform[5],w:i.width,cx:i.transform[4]+i.width/2}));
+    const rows={};for(const it of items){const k=Math.round(it.y/3);(rows[k]=rows[k]||[]).push(it)}
+    const lines=Object.keys(rows).sort((a,b)=>b-a).map(k=>rows[k].sort((a,b)=>a.x-b.x).map(i=>i.s).join(' '));
+    const all=lines.join('\n');
+    if(!comp){const m=all.match(/Compet[êe]ncia\s*(\d{2}\/\d{4})/i);if(m)comp=m[1]}
+    if(!casa){const m=all.match(/Casa de Ora[çc][ãa]o\s+(BR[^\n]*?)\s+Status/i);if(m)casa=m[1].trim()}
+    for(const l of lines){const m=l.match(/\b(\d+\.\d+)\s+(.+?)\s+\d{2}\/\d{2}\/\d{4}\s+(Inspecionado e com avarias|N[ãa]o inspecionado)/i);
+      if(m){const t=`${m[2].replace(/\s*\(.*$/,'').trim()} — ${/avaria/i.test(m[3])?'com avarias':'não inspecionado'}`;if(!pend.includes(t))pend.push(t)}}
+    for(const a of items.filter(i=>/^assinatura$/i.test(i.s))){
+      const below=items.filter(i=>i!==a&&i.y<a.y&&a.y-i.y<45&&Math.abs(i.cx-a.cx)<70&&!/^(nome|assinatura)$/i.test(i.s)).sort((m,n)=>(a.y-m.y)-(a.y-n.y));
+      const nome=items.filter(i=>/^nome$/i.test(i.s)&&i.y>a.y&&i.y-a.y<70&&Math.abs(i.cx-a.cx)<45).sort((m,n)=>m.y-n.y)[0];
+      fields.push({page:p-1,role:below[0]?below[0].s:`Assinatura ${fields.length+1}`,box:{x:a.cx-82,y:a.y+11.5,w:164,h:24},namePos:{x:a.cx,y:nome?nome.y+12.5:a.y+48}});
+    }
   }
-  J.base=Math.min(J.base,J.files.length-1);if(J.base<0)J.base=0;
-  renderMerge();
+  return {fields,comp,casa,pend:pend.slice(0,6),numPages:doc.numPages};
 }
-function collect(){
-  const best={};for(const f of J.files)for(const s of f.sigs){const k=norm(s.role);if(!best[k]||best[k].at<s.at)best[k]=s}
-  return best;
+
+/* ---------- entregar arquivo ---------- */
+async function offerFile(bytes,filename,box){
+  const blob=new Blob([bytes],{type:'application/pdf'});
+  box.innerHTML='';box.hidden=false;
+  const t=document.createElement('div');t.innerHTML='<b>PDF pronto.</b> <span class="mono"></span>';t.querySelector('span').textContent=filename;box.appendChild(t);
+  const btns=document.createElement('div');btns.className='btns';box.appendChild(btns);
+  const msg=document.createElement('div');msg.className='note';box.appendChild(msg);
+  const dl=document.createElement('button');dl.className='btn primary';dl.textContent='Baixar PDF';
+  dl.onclick=async()=>{
+    if(inClaude){const d=await window.claude.use('downloads');
+      if(d){try{await d.save({filename,data:blob});msg.textContent='Arquivo salvo.'}catch(e){msg.textContent=e&&e.code==='declined'?'Download cancelado.':'Não foi possível salvar aqui.'}}
+      else msg.textContent='Salvar não está disponível nesta visualização.';return}
+    const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+    msg.textContent='Download iniciado.';
+  };
+  btns.appendChild(dl);
+  let file=null;try{file=new File([blob],filename,{type:'application/pdf'})}catch(e){}
+  if(!inClaude&&file&&navigator.canShare&&navigator.canShare({files:[file]})){
+    const sh=document.createElement('button');sh.className='btn';sh.textContent='Compartilhar';
+    sh.onclick=async()=>{try{await navigator.share({files:[file],title:filename})}catch(e){}};btns.appendChild(sh);
+  }
 }
-function renderMerge(){
-  const box=$('#j-files');box.innerHTML='';
-  J.files.forEach((f,i)=>{
-    const d=document.createElement('div');d.className='file';
-    d.innerHTML=`<input type="radio" name="jbase" id="jb${i}" aria-label="Usar como base"><label class="nm" for="jb${i}"><span class="n"></span><div class="rs"></div></label><button class="btn" type="button">Remover</button>`;
-    d.querySelector('.n').textContent=f.name;
-    d.querySelector('.rs').textContent=(f.sigs.length?'Assinaturas: '+f.sigs.map(s=>s.role).join(', '):'Sem assinaturas (original)')+(i===J.base?' · base do PDF final':'');
-    const rb=d.querySelector('input');rb.checked=i===J.base;rb.onchange=()=>{J.base=i;renderMerge()};
-    d.querySelector('button').onclick=()=>{J.files.splice(i,1);if(J.base>=J.files.length)J.base=Math.max(0,J.files.length-1);renderMerge()};
-    box.appendChild(d);
+
+/* =============== MODO: QUEM ASSINA =============== */
+const Q=new URLSearchParams(location.search);
+if(Q.get('p')){
+  $('#panel').hidden=true;$('#signer').hidden=false;document.title='Assinar relatório';
+  const role=Q.get('p'),comp=Q.get('c')||'',casa=Q.get('h')||'',back=Q.get('w')||'',key=Q.get('k')||'',base=Q.get('b')||(location.origin+location.pathname);
+  $('#s-sub').textContent=`Falta só a sua assinatura como ${role} no Relatório de Manutenção.`;
+  $('#s-facts').innerHTML=(casa?`<div><span>Casa de Oração</span>${esc(casa)}</div>`:'')+(comp?`<div><span>Competência</span><b class="mono">${esc(comp)}</b></div>`:'')+`<div><span>Assinar como</span><b>${esc(role)}</b></div>`;
+  const pend=(Q.get('i')||'').split('|').filter(Boolean);
+  $('#s-pend').innerHTML=pend.length?`<p class="note" style="margin-bottom:4px">Pontos anotados no relatório:</p><ul class="pend">${pend.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`:'<p class="note">Sem pontos de atenção anotados.</p>';
+  $('#s-name').value=Q.get('n')||'';
+  const padEl=$('#pad');let strokes=[],cur=null;
+  const sizePad=()=>{const r=padEl.getBoundingClientRect();if(!r.width)return;const dpr=Math.min(window.devicePixelRatio||1,3);padEl.width=Math.round(r.width*dpr);padEl.height=Math.round(r.height*dpr);redraw()};
+  const redraw=()=>{const r=padEl.getBoundingClientRect();const ctx=padEl.getContext('2d');const k=padEl.width/(r.width||1);ctx.setTransform(k,0,0,k,0,0);ctx.clearRect(0,0,r.width,r.height);drawStrokes(ctx,strokes,1,0,0,3);$('#pad-wrap').classList.toggle('has',strokes.length>0)};
+  const pt=ev=>{const r=padEl.getBoundingClientRect();return[ev.clientX-r.left,ev.clientY-r.top]};
+  padEl.addEventListener('pointerdown',ev=>{ev.preventDefault();padEl.setPointerCapture(ev.pointerId);cur=[pt(ev)];strokes.push(cur);redraw()});
+  padEl.addEventListener('pointermove',ev=>{if(!cur)return;ev.preventDefault();const evs=ev.getCoalescedEvents?ev.getCoalescedEvents():[ev];for(const e of evs)cur.push(pt(e));redraw()});
+  const end=()=>{cur=null};padEl.addEventListener('pointerup',end);padEl.addEventListener('pointercancel',end);
+  window.addEventListener('resize',sizePad);requestAnimationFrame(sizePad);
+  $('#s-clear').addEventListener('click',()=>{strokes=[];redraw();setStatus($('#s-status'),'')});
+  $('#s-send').addEventListener('click',()=>{
+    const st=$('#s-status');const name=$('#s-name').value.trim();
+    if(!name){setStatus(st,'Escreva seu nome no campo acima.','bad');$('#s-name').focus();return}
+    if(strokes.flat().length<4){setStatus(st,'Faça sua assinatura no quadro branco.','bad');return}
+    const enc=encodeStrokes(strokes,3);
+    const payload={v:2,k:key,p:role,n:name,t:Date.now(),lw:enc.lw,s:enc.s};
+    const link=base+'#r='+packPayload(payload);
+    const month=LS.get('month',null);
+    if(month&&month.k===key){const sig=LS.get('sigs:'+key,{});sig[norm(role)]=payload;LS.set('sigs:'+key,sig)}
+    const txt=`Assinatura do Relatório ${comp} — ${role}: ${name}.\nToque no link para registrar:\n${link}`;
+    const wa=`https://wa.me/${digits(back)}?text=${encodeURIComponent(txt)}`;
+    $('#s-form').hidden=true;$('#s-done').hidden=false;$('#s-wa').href=wa;
+    if(month&&month.k===key){$('#s-done-txt').textContent='Assinatura registrada neste aparelho. Pode fechar esta página.';$('#s-wa').hidden=true}
+    else{try{location.href=wa}catch(e){}}
   });
-  const sum=$('#j-summary');
-  if(!J.files.length){sum.innerHTML='<div class="empty"><b>Nada adicionado ainda</b>Quando os PDFs voltarem, adicione aqui. Cada função aparece como assinada ou pendente.</div>';$('#j-go').disabled=true;return}
-  const best=collect();const base=J.files[J.base];
-  const roles=[...base.facts.fields.map(f=>f.role)];for(const k in best)if(!roles.some(r=>norm(r)===k))roles.push(best[k].role);
-  let pend=0;
-  const rows=roles.map(r=>{const s=best[norm(r)];if(!s)pend++;
-    return `<tr><td>${esc(r)}</td><td>${s?'<span class="pill ok">assinado</span>':'<span class="pill wait">pendente</span>'}</td><td>${s?esc(s.name):'—'}</td><td class="mono">${s?fmtDate(s.at):''}</td></tr>`}).join('');
-  sum.innerHTML=`<div class="tablewrap"><table class="roles"><thead><tr><th>Função</th><th>Situação</th><th>Nome</th><th>Data</th></tr></thead><tbody>${rows}</tbody></table></div>`+
-    (pend?`<p class="note" style="margin-top:8px">${pend} pendente(s). Você pode gerar mesmo assim e juntar de novo quando chegar o restante.</p>`:'');
-  $('#j-go').disabled=false;
+  return;
 }
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-$('#j-go').addEventListener('click',async()=>{
-  const st=$('#j-status');setStatus(st,'Montando PDF final…');$('#j-go').disabled=true;
+
+/* =============== MODO: PAINEL =============== */
+let month=LS.get('month',null);let facts=null;
+$('#p-me').value=LS.get('me','');$('#p-base').value=LS.get('base',(!inClaude&&/^https?:/.test(location.protocol))?location.origin+location.pathname:DEFAULT_BASE);
+$('#p-me').addEventListener('input',e=>{LS.set('me',e.target.value);renderSigners()});
+$('#p-base').addEventListener('input',e=>{LS.set('base',e.target.value.trim());renderSigners()});
+const drop=$('#p-drop'),fileIn=$('#p-file');
+['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',ev=>{const f=ev.dataTransfer.files[0];if(f)loadMonth(f)});
+fileIn.addEventListener('change',()=>{if(fileIn.files[0])loadMonth(fileIn.files[0]);fileIn.value=''});
+
+async function loadMonth(f){
+  const meta=$('#p-meta');meta.innerHTML='<b></b><span>Lendo…</span>';meta.querySelector('b').textContent=f.name;
   try{
-    const base=J.files[J.base];const lib=await PDFLib.PDFDocument.load(base.bytes,{ignoreEncryption:true});
-    const have=readSigs(lib);const haveK=new Set(have.map(s=>norm(s.role)));
-    const best=collect();const add=Object.values(best).filter(s=>!haveK.has(norm(s.role)));
-    await stamp(lib,add);writeSigs(lib,have.concat(add));
-    const out=await lib.save();const comp=(base.facts.comp||'').replace('/','-');
-    const total=have.length+add.length;
-    setStatus(st,'');await offerFile(out,`Relatorio Manutencao ${comp} - assinado.pdf`.replace(/\s+/g,' '),$('#j-result'),`${total} assinatura(s) no documento.`);
+    const bytes=new Uint8Array(await f.arrayBuffer());const fx=await pdfFacts(bytes);
+    const prev=month;
+    const same=prev&&prev.comp===fx.comp&&prev.casa===fx.casa;
+    month={k:same?prev.k:Math.random().toString(36).slice(2,10),name:f.name,comp:fx.comp,casa:fx.casa,pdf:bytesToB64(bytes)};
+    if(!LS.set('month',month))setStatus($('#p-status'),'O navegador não deixou guardar o PDF. Ele vale só enquanto esta página estiver aberta.','warn');
+    facts=fx;renderMonth();
+  }catch(e){meta.innerHTML='<b>Não consegui abrir este arquivo</b><span>Confira se é o PDF do relatório.</span>'}
+}
+async function restore(){
+  if(!month||!month.pdf)return;
+  try{facts=await pdfFacts(b64ToBytes(month.pdf));renderMonth()}catch(e){}
+}
+function renderMonth(){
+  const meta=$('#p-meta');meta.innerHTML='<b></b><span></span>';meta.querySelector('b').textContent=month.name;
+  meta.querySelector('span').textContent=`${facts.numPages} folha(s) · toque para trocar`;
+  const fx=$('#p-facts');fx.hidden=false;
+  fx.innerHTML=`<div class="facts"><div><span>Casa de Oração</span>${esc(facts.casa||'—')}</div><div><span>Competência</span><b class="mono">${esc(facts.comp||'—')}</b></div><div><span>Campos de assinatura</span>${facts.fields.length?facts.fields.map(f=>esc(f.role)).join(', '):'nenhum encontrado'}</div></div>`+
+    (facts.pend.length?`<p class="note" style="margin-top:8px">Pontos anotados (aparecem para quem assina): ${facts.pend.map(esc).join('; ')}</p>`:'');
+  $('#p-reset').hidden=false;renderSigners();
+}
+function signerLink(role,c){
+  const base=($('#p-base').value||DEFAULT_BASE).trim();
+  const q=new URLSearchParams({p:role,c:facts.comp||'',h:facts.casa||'',n:c.name||'',w:$('#p-me').value||'',k:month.k,i:facts.pend.join('|'),b:base});
+  return base+(base.includes('?')?'&':'?')+q.toString();
+}
+function renderSigners(){
+  const box=$('#p-signers');
+  if(!month||!facts){box.innerHTML='<div class="note">Carregue o relatório para ver as funções.</div>';$('#p-final').disabled=true;return}
+  if(!facts.fields.length){box.innerHTML='<div class="status warn">Não encontrei os campos "Assinatura" neste PDF. Use o modelo do SIGA (MNT00207).</div>';$('#p-final').disabled=true;return}
+  const sigs=LS.get('sigs:'+month.k,{});box.innerHTML='';let count=0;
+  for(const f of facts.fields){
+    const c=LS.get('contact:'+norm(f.role),{name:'',phone:''});const s=sigs[norm(f.role)];if(s)count++;
+    const el=document.createElement('div');el.className='signer';
+    el.innerHTML=`<div class="top"><b></b>${s?'<span class="pill ok">assinado</span>':'<span class="pill wait">pendente</span>'}</div>
+      ${s?'<div class="done"></div>':''}
+      <div class="row"><label class="f">Nome<input type="text" data-k="name" placeholder="Nome de quem assina"></label><label class="f">WhatsApp<input type="tel" data-k="phone" placeholder="19 99999-0000"></label></div>
+      <div class="btns"><a class="btn wa" target="_blank" rel="noopener">Pedir pelo WhatsApp</a><button class="btn" data-a="copy">Copiar link</button>${s?'<button class="btn" data-a="undo">Remover assinatura</button>':''}</div>`;
+    el.querySelector('.top b').textContent=f.role;
+    if(s){const d=el.querySelector('.done');d.textContent=`${s.n} · ${fmtDate(s.t)}`;try{const img=new Image();img.alt='Assinatura de '+s.n;img.src=strokesToCanvas(decodeStrokes(s.s),s.lw,240).toDataURL();d.appendChild(img)}catch(e){}}
+    const nm=el.querySelector('[data-k=name]'),ph=el.querySelector('[data-k=phone]'),wa=el.querySelector('a.wa');nm.value=c.name;ph.value=c.phone;
+    const upd=()=>{const cc={name:nm.value.trim(),phone:ph.value};LS.set('contact:'+norm(f.role),cc);
+      const first=(cc.name.split(' ')[0]||'');
+      const txt=`A Paz de Deus${first?', '+first:''}! Preciso da sua assinatura no Relatório de Manutenção ${facts.comp||''} como ${f.role}.\n\nÉ só tocar no link, assinar com o dedo e tocar em "Enviar assinatura":\n${signerLink(f.role,cc)}`;
+      wa.href=`https://wa.me/${digits(cc.phone)}?text=${encodeURIComponent(txt)}`;wa.dataset.txt=txt};
+    nm.addEventListener('input',upd);ph.addEventListener('input',upd);upd();
+    el.querySelector('[data-a=copy]').onclick=async ev=>{try{await navigator.clipboard.writeText(wa.dataset.txt);ev.target.textContent='Copiado'}catch(e){ev.target.textContent='Não deu para copiar'}setTimeout(()=>ev.target.textContent='Copiar link',1800)};
+    const undo=el.querySelector('[data-a=undo]');if(undo)undo.onclick=()=>{const all=LS.get('sigs:'+month.k,{});delete all[norm(f.role)];LS.set('sigs:'+month.k,all);renderSigners()};
+    box.appendChild(el);
+  }
+  $('#p-final').disabled=!count;$('#p-final').textContent=count?`Gerar PDF assinado (${count} de ${facts.fields.length})`:'Gerar PDF assinado';
+}
+function receive(code,fromPaste){
+  const ban=$('#p-banner');
+  let p;try{p=unpackPayload(code)}catch(e){setStatus(ban,'Não consegui ler esta assinatura. Peça para a pessoa enviar de novo.','bad');return}
+  if(!month){LS.set('pending',p);setStatus(ban,`Assinatura de ${p.n} (${p.p}) recebida. Carregue o relatório do mês para registrá-la.`,'warn');return}
+  if(p.k&&p.k!==month.k){setStatus(ban,`Esta assinatura de ${p.n} é de outro relatório (pedido de um mês anterior). Peça para assinar o link novo.`,'bad');return}
+  const all=LS.get('sigs:'+month.k,{});all[norm(p.p)]=p;LS.set('sigs:'+month.k,all);
+  setStatus(ban,`Assinatura de ${p.n} (${p.p}) registrada em ${fmtDate(p.t)}.`,'ok');renderSigners();
+}
+$('#p-paste-go').addEventListener('click',()=>{const m=$('#p-paste').value.match(/#r=([A-Za-z0-9_-]+)/);if(!m){setStatus($('#p-banner'),'Não encontrei o link de assinatura no texto colado.','bad');return}receive(m[1],true);$('#p-paste').value=''});
+$('#p-reset').addEventListener('click',()=>{if(month)LS.del('sigs:'+month.k);LS.del('month');month=null;facts=null;$('#p-facts').hidden=true;$('#p-reset').hidden=true;$('#p-result').hidden=true;
+  $('#p-meta').innerHTML='<b>Nenhum relatório carregado</b><span>Escolha o PDF do novo mês.</span>';setStatus($('#p-banner'),'');renderSigners()});
+
+async function stamp(lib,list){
+  const font=await lib.embedFont(PDFLib.StandardFonts.Helvetica);
+  const safe=t=>{try{font.widthOfTextAtSize(t,8);return t}catch(e){return t.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\x20-\x7E]/g,'')}};
+  for(const {f,s} of list){
+    const page=lib.getPage(f.page);
+    const png=strokesToCanvas(decodeStrokes(s.s),s.lw,600).toDataURL('image/png').split(',')[1];
+    const img=await lib.embedPng(b64ToBytes(png));
+    const r=Math.min(f.box.w/img.width,f.box.h/img.height);const w=img.width*r,h=img.height*r;
+    page.drawImage(img,{x:f.box.x+(f.box.w-w)/2,y:f.box.y,width:w,height:h});
+    const label=safe(`${s.n}  ·  ${fmtDate(s.t)}`);let size=8.5;while(font.widthOfTextAtSize(label,size)>f.box.w+8&&size>5)size-=.5;
+    page.drawText(label,{x:f.namePos.x-font.widthOfTextAtSize(label,size)/2,y:f.namePos.y,size,font,color:PDFLib.rgb(.1,.16,.42)});
+  }
+}
+$('#p-final').addEventListener('click',async()=>{
+  const st=$('#p-status');setStatus(st,'Montando o PDF…');$('#p-final').disabled=true;
+  try{
+    const sigs=LS.get('sigs:'+month.k,{});const lib=await PDFLib.PDFDocument.load(b64ToBytes(month.pdf),{ignoreEncryption:true});
+    const list=facts.fields.filter(f=>sigs[norm(f.role)]).map(f=>({f,s:sigs[norm(f.role)]}));
+    await stamp(lib,list);const out=await lib.save();
+    const pend=facts.fields.length-list.length;
+    setStatus(st,pend?`${pend} assinatura(s) ainda pendente(s). Você pode gerar de novo quando chegarem.`:'Todas as assinaturas incluídas.',pend?'warn':'ok');
+    await offerFile(out,`Relatorio Manutencao ${(facts.comp||'').replace('/','-')} - assinado.pdf`.replace(/\s+/g,' '),$('#p-result'));
   }catch(e){setStatus(st,'Não foi possível montar o PDF ('+(e&&e.message||e)+').','bad')}
-  finally{$('#j-go').disabled=false}
+  finally{$('#p-final').disabled=false}
 });
+
+(async function boot(){
+  await restore();
+  const pend=LS.get('pending',null);if(pend&&month){LS.del('pending');receive(packPayload(pend))}
+  const m=location.hash.match(/^#r=([A-Za-z0-9_-]+)/);
+  if(m){receive(m[1]);try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}
+  renderSigners();
+})();
 })();
 </script>
 
