@@ -303,7 +303,7 @@ if(Q.get('a')||Q.get('p')){
   let A={};
   if(Q.get('a')){try{const r=await unpack(Q.get('a'));A={p:r[0],c:r[1],h:r[2],n:r[3],w:r[4],k:r[5],i:r[6]}}catch(e){$('#s-sub').textContent='Este link está incompleto. Peça um novo link para quem te enviou.';$('#s-send').disabled=true;return}}
   else A={p:Q.get('p'),c:Q.get('c'),h:Q.get('h'),n:Q.get('n'),w:Q.get('w'),k:Q.get('k'),i:Q.get('i')};
-  const role=A.p,comp=A.c||'',casa=A.h||'',back=A.w||'',key=A.k||'',base=location.origin+location.pathname;
+  const roles=Array.isArray(A.p)?A.p:[A.p],role=roles.join(' e '),comp=A.c||'',casa=A.h||'',back=A.w||'',key=A.k||'',base=location.origin+location.pathname;
   $('#s-sub').textContent=`Falta só a sua assinatura como ${role} no Relatório de Manutenção.`;
   $('#s-facts').innerHTML=(casa?`<div><span>Casa de Oração</span>${esc(casa)}</div>`:'')+(comp?`<div><span>Competência</span><b class="mono">${esc(comp)}</b></div>`:'')+`<div><span>Assinar como</span><b>${esc(role)}</b></div>`;
   const pend=(A.i||'').split('|').filter(Boolean);
@@ -323,10 +323,11 @@ if(Q.get('a')||Q.get('p')){
     if(!name){setStatus(st,'Escreva seu nome no campo acima.','bad');$('#s-name').focus();return}
     if(strokes.flat().length<4){setStatus(st,'Faça sua assinatura no quadro branco.','bad');return}
     const enc=encodeStrokes(strokes,3);
-    const payload={v:2,k:key,p:role,n:name,t:Date.now(),lw:enc.lw,s:enc.s};
-    const link=base+'#r='+await pack([2,key,role,name,payload.t,enc.lw,enc.s]);
+    const rp=roles.length>1?roles:roles[0];
+    const payload={v:2,k:key,p:rp,n:name,t:Date.now(),lw:enc.lw,s:enc.s};
+    const link=base+'#r='+await pack([2,key,rp,name,payload.t,enc.lw,enc.s]);
     const month=LS.get('month',null);
-    if(month&&month.k===key){const sig=LS.get('sigs:'+key,{});sig[norm(role)]=payload;LS.set('sigs:'+key,sig)}
+    if(month&&month.k===key){const sig=LS.get('sigs:'+key,{});for(const r of roles)sig[norm(r)]={...payload,p:r};LS.set('sigs:'+key,sig)}
     const txt=`✅ Assinei (${role}).\n${link}`;
     const wa=`https://wa.me/${digits(back)}?text=${encodeURIComponent(txt)}`;
     $('#s-form').hidden=true;$('#s-done').hidden=false;$('#s-wa').href=wa;
@@ -381,23 +382,26 @@ function renderSigners(){
   if(!month||!facts){box.innerHTML='<div class="note">Carregue o relatório para ver as funções.</div>';$('#p-final').disabled=true;return}
   if(!facts.fields.length){box.innerHTML='<div class="status warn">Não encontrei os campos "Assinatura" neste PDF. Use o modelo do SIGA (MNT00207).</div>';$('#p-final').disabled=true;return}
   const sigs=LS.get('sigs:'+month.k,{});box.innerHTML='';let count=0;
-  for(const f of facts.fields){
-    const c=LS.get('contact:'+norm(f.role),{name:'',phone:''});const s=sigs[norm(f.role)];if(s)count++;
+  const contacts=facts.fields.map(f=>LS.get('contact:'+norm(f.role),{name:'',phone:''}));
+  const groupOf=i=>{const d=digits(contacts[i].phone);return d?facts.fields.filter((g,j)=>digits(contacts[j].phone)===d):[facts.fields[i]]};
+  for(const [fi,f] of facts.fields.entries()){
+    const c=contacts[fi];const s=sigs[norm(f.role)];if(s)count++;
+    const grp=groupOf(fi),lead=grp[0]===f,roles=grp.map(g=>g.role);
     const el=document.createElement('div');el.className='signer';
     el.innerHTML=`<div class="top"><b></b>${s?'<span class="pill ok">assinado</span>':'<span class="pill wait">pendente</span>'}</div>
       ${s?'<div class="done"></div>':''}
       <div class="row"><label class="f">Nome<input type="text" data-k="name" placeholder="Nome de quem assina"></label><label class="f">WhatsApp<input type="tel" data-k="phone" placeholder="19 99999-0000"></label>${f.extraPos?`<label class="f">${esc(f.role)} (sai impresso no relatório)<input type="text" data-k="extra" placeholder="Ex.: Ancião, Diácono, Cooperador"></label>`:''}</div>
-      <div class="btns"><a class="btn wa" target="_blank" rel="noopener">Pedir pelo WhatsApp</a><button class="btn" data-a="copy">Copiar link</button>${s?'<button class="btn" data-a="undo">Remover assinatura</button>':''}</div>`;
+      <div class="btns">${lead?`<a class="btn wa" target="_blank" rel="noopener">Pedir pelo WhatsApp${roles.length>1?' ('+esc(roles.join(' + '))+')':''}</a><button class="btn" data-a="copy">Copiar link</button>`:`<span class="note">Mesmo WhatsApp de ${esc(grp[0].role)}: vai no mesmo pedido, com uma assinatura só.</span>`}${s?'<button class="btn" data-a="undo">Remover assinatura</button>':''}</div>`;
     el.querySelector('.top b').textContent=f.role;
     if(s){const d=el.querySelector('.done');d.textContent=`${s.n} · ${fmtDate(s.t)}`;try{const img=new Image();img.alt='Assinatura de '+s.n;img.src=strokesToCanvas(decodeStrokes(s.s),s.lw,240).toDataURL();d.appendChild(img)}catch(e){}}
     const nm=el.querySelector('[data-k=name]'),ph=el.querySelector('[data-k=phone]'),ex=el.querySelector('[data-k=extra]'),wa=el.querySelector('a.wa');nm.value=c.name;ph.value=c.phone;if(ex)ex.value=c.extra||'';
     let tok=0;
     const upd=async()=>{const my=++tok;const cc={name:nm.value.trim(),phone:ph.value,extra:ex?ex.value.trim():''};LS.set('contact:'+norm(f.role),cc);
-      const first=(cc.name.split(' ')[0]||'');const link=await signerLink(f.role,cc);if(my!==tok)return;
+      const first=(cc.name.split(' ')[0]||'');if(!wa)return;const link=await signerLink(roles.length>1?roles:f.role,cc);if(my!==tok)return;
       const txt=`A Paz de Deus${first?', '+first:''}! Preciso da sua assinatura no Relatório de Manutenção ${facts.comp||''}. Toque no link para assinar:\n${link}`;
       wa.href=`https://wa.me/${digits(cc.phone)}?text=${encodeURIComponent(txt)}`;wa.dataset.txt=txt};
-    nm.addEventListener('input',upd);ph.addEventListener('input',upd);if(ex)ex.addEventListener('input',upd);upd();
-    el.querySelector('[data-a=copy]').onclick=async ev=>{try{await navigator.clipboard.writeText(wa.dataset.txt);ev.target.textContent='Copiado'}catch(e){ev.target.textContent='Não deu para copiar'}setTimeout(()=>ev.target.textContent='Copiar link',1800)};
+    nm.addEventListener('input',upd);ph.addEventListener('input',upd);ph.addEventListener('change',()=>renderSigners());if(ex)ex.addEventListener('input',upd);upd();
+    const cp=el.querySelector('[data-a=copy]');if(cp)cp.onclick=async ev=>{try{await navigator.clipboard.writeText(wa.dataset.txt);ev.target.textContent='Copiado'}catch(e){ev.target.textContent='Não deu para copiar'}setTimeout(()=>ev.target.textContent='Copiar link',1800)};
     const undo=el.querySelector('[data-a=undo]');if(undo)undo.onclick=()=>{const all=LS.get('sigs:'+month.k,{});delete all[norm(f.role)];LS.set('sigs:'+month.k,all);renderSigners()};
     box.appendChild(el);
   }
@@ -408,8 +412,9 @@ async function receive(code,fromPaste){
   let p;try{const r=await unpack(code);p=Array.isArray(r)?{v:r[0],k:r[1],p:r[2],n:r[3],t:r[4],lw:r[5],s:r[6]}:r}catch(e){setStatus(ban,'Não consegui ler esta assinatura. Peça para a pessoa enviar de novo.','bad');return}
   if(!month){LS.set('pending',p);setStatus(ban,`Assinatura de ${p.n} (${p.p}) recebida. Carregue o relatório do mês para registrá-la.`,'warn');return}
   if(p.k&&p.k!==month.k){setStatus(ban,`Esta assinatura de ${p.n} é de outro relatório (pedido de um mês anterior). Peça para assinar o link novo.`,'bad');return}
-  const all=LS.get('sigs:'+month.k,{});all[norm(p.p)]=p;LS.set('sigs:'+month.k,all);
-  setStatus(ban,`Assinatura de ${p.n} (${p.p}) registrada em ${fmtDate(p.t)}.`,'ok');renderSigners();
+  const rl=Array.isArray(p.p)?p.p:[p.p];
+  const all=LS.get('sigs:'+month.k,{});for(const r of rl)all[norm(r)]={...p,p:r};LS.set('sigs:'+month.k,all);
+  setStatus(ban,`Assinatura de ${p.n} (${rl.join(' e ')}) registrada em ${fmtDate(p.t)}.`,'ok');renderSigners();
 }
 $('#p-paste-go').addEventListener('click',()=>{const m=$('#p-paste').value.match(/#r=([A-Za-z0-9_-]+)/);if(!m){setStatus($('#p-banner'),'Não encontrei o link de assinatura no texto colado.','bad');return}receive(m[1],true);$('#p-paste').value=''});
 $('#p-reset').addEventListener('click',()=>{if(month)LS.del('sigs:'+month.k);LS.del('month');month=null;facts=null;$('#p-facts').hidden=true;$('#p-reset').hidden=true;$('#p-result').hidden=true;
