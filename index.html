@@ -383,7 +383,8 @@ function renderSigners(){
   if(!facts.fields.length){box.innerHTML='<div class="status warn">Não encontrei os campos "Assinatura" neste PDF. Use o modelo do SIGA (MNT00207).</div>';$('#p-final').disabled=true;return}
   const sigs=LS.get('sigs:'+month.k,{});box.innerHTML='';let count=0;
   const contacts=facts.fields.map(f=>LS.get('contact:'+norm(f.role),{name:'',phone:''}));
-  const groupOf=i=>{const d=digits(contacts[i].phone);return d?facts.fields.filter((g,j)=>digits(contacts[j].phone)===d):[facts.fields[i]]};
+  const who=j=>{const d=digits(contacts[j].phone),n=norm(contacts[j].name).replace(/\s+/g,' ');return d&&n?d+'|'+n:''};
+  const groupOf=i=>{const w=who(i);return w?facts.fields.filter((g,j)=>who(j)===w):[facts.fields[i]]};
   for(const [fi,f] of facts.fields.entries()){
     const c=contacts[fi];const s=sigs[norm(f.role)];if(s)count++;
     const grp=groupOf(fi),lead=grp[0]===f,roles=grp.map(g=>g.role);
@@ -391,7 +392,7 @@ function renderSigners(){
     el.innerHTML=`<div class="top"><b></b>${s?'<span class="pill ok">assinado</span>':'<span class="pill wait">pendente</span>'}</div>
       ${s?'<div class="done"></div>':''}
       <div class="row"><label class="f">Nome<input type="text" data-k="name" placeholder="Nome de quem assina"></label><label class="f">WhatsApp<input type="tel" data-k="phone" placeholder="19 99999-0000"></label>${f.extraPos?`<label class="f">${esc(f.role)} (sai impresso no relatório)<input type="text" data-k="extra" placeholder="Ex.: Ancião, Diácono, Cooperador"></label>`:''}</div>
-      <div class="btns">${lead?`<a class="btn wa" target="_blank" rel="noopener">Pedir pelo WhatsApp${roles.length>1?' ('+esc(roles.join(' + '))+')':''}</a><button class="btn" data-a="copy">Copiar link</button>`:`<span class="note">Mesmo WhatsApp de ${esc(grp[0].role)}: vai no mesmo pedido, com uma assinatura só.</span>`}${s?'<button class="btn" data-a="undo">Remover assinatura</button>':''}</div>`;
+      <div class="btns">${lead?`<a class="btn wa" target="_blank" rel="noopener">Pedir pelo WhatsApp${roles.length>1?' ('+esc(roles.join(' + '))+')':''}</a><button class="btn" data-a="copy">Copiar link</button>`:`<span class="note">Mesma pessoa de ${esc(grp[0].role)} (mesmo nome e WhatsApp): vai no mesmo pedido, com uma assinatura só.</span>`}${s?'<button class="btn" data-a="undo">Remover assinatura</button>':''}</div>`;
     el.querySelector('.top b').textContent=f.role;
     if(s){const d=el.querySelector('.done');d.textContent=`${s.n} · ${fmtDate(s.t)}`;try{const img=new Image();img.alt='Assinatura de '+s.n;img.src=strokesToCanvas(decodeStrokes(s.s),s.lw,240).toDataURL();d.appendChild(img)}catch(e){}}
     const nm=el.querySelector('[data-k=name]'),ph=el.querySelector('[data-k=phone]'),ex=el.querySelector('[data-k=extra]'),wa=el.querySelector('a.wa');nm.value=c.name;ph.value=c.phone;if(ex)ex.value=c.extra||'';
@@ -400,7 +401,7 @@ function renderSigners(){
       const first=(cc.name.split(' ')[0]||'');if(!wa)return;const link=await signerLink(roles.length>1?roles:f.role,cc);if(my!==tok)return;
       const txt=`A Paz de Deus${first?', '+first:''}! Preciso da sua assinatura no Relatório de Manutenção ${facts.comp||''}. Toque no link para assinar:\n${link}`;
       wa.href=`https://wa.me/${digits(cc.phone)}?text=${encodeURIComponent(txt)}`;wa.dataset.txt=txt};
-    nm.addEventListener('input',upd);ph.addEventListener('input',upd);ph.addEventListener('change',()=>renderSigners());if(ex)ex.addEventListener('input',upd);upd();
+    nm.addEventListener('input',upd);ph.addEventListener('input',upd);ph.addEventListener('change',()=>renderSigners());nm.addEventListener('change',()=>renderSigners());if(ex)ex.addEventListener('input',upd);upd();
     const cp=el.querySelector('[data-a=copy]');if(cp)cp.onclick=async ev=>{try{await navigator.clipboard.writeText(wa.dataset.txt);ev.target.textContent='Copiado'}catch(e){ev.target.textContent='Não deu para copiar'}setTimeout(()=>ev.target.textContent='Copiar link',1800)};
     const undo=el.querySelector('[data-a=undo]');if(undo)undo.onclick=()=>{const all=LS.get('sigs:'+month.k,{});delete all[norm(f.role)];LS.set('sigs:'+month.k,all);renderSigners()};
     box.appendChild(el);
