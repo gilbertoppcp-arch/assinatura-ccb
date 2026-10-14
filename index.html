@@ -133,6 +133,18 @@ footer{font-size:12px;color:var(--muted);text-align:center}
   </section>
 
   <section class="card">
+    <h2>Biblioteca de assinaturas</h2>
+    <p class="note">Toda assinatura recebida fica salva aqui. Nos próximos meses, toque em "Usar assinatura salva" no cartão da pessoa, sem precisar pedir de novo. No PDF sai o nome com "aplicada c/ autorização" e a data. Use só para quem autorizou.</p>
+    <div class="signers" id="p-lib"></div>
+    <div class="btns">
+      <button class="btn" id="p-lib-exp">Baixar cópia de segurança</button>
+      <label class="btn" for="p-lib-imp" style="cursor:pointer">Restaurar cópia</label>
+      <input type="file" id="p-lib-imp" accept=".json,application/json" hidden>
+    </div>
+    <div class="note" id="p-lib-msg"></div>
+  </section>
+
+  <section class="card">
     <h2><span class="k">4</span> PDF final</h2>
     <div class="btns"><button class="btn primary" id="p-final" disabled>Gerar PDF assinado</button><button class="btn" id="p-reset" hidden>Começar novo mês</button></div>
     <div class="status" id="p-status" hidden></div>
@@ -377,6 +389,46 @@ async function signerLink(role,c){
   const a=await pack([role,facts.comp||'',facts.casa||'',c.name||'',digits($('#p-me').value),month.k,facts.pend.join('|')]);
   return base+(base.includes('?')?'&':'?')+'a='+a;
 }
+/* ---------- biblioteca de assinaturas ---------- */
+const libKey=n=>norm(n).replace(/\s+/g,' ');
+const libGet=()=>LS.get('lib',{});
+function libAdd(p){const k=libKey(p.n);if(!k||!p.s)return;const lib=libGet();if(!lib[k]||lib[k].t<p.t){lib[k]={n:p.n,s:p.s,lw:p.lw,t:p.t};LS.set('lib',lib)}}
+function renderLib(){
+  const box=$('#p-lib');const lib=libGet();const keys=Object.keys(lib).sort((a,b)=>a.localeCompare(b));box.innerHTML='';
+  if(!keys.length){box.innerHTML='<div class="note">Nenhuma assinatura salva ainda. Elas entram aqui automaticamente quando você registra um retorno.</div>';return}
+  for(const k of keys){const e=lib[k];
+    const el=document.createElement('div');el.className='signer';
+    el.innerHTML=`<div class="top"><b></b><span class="pill ok"></span></div><div class="done"></div><div class="btns"><button class="btn" data-a="del">Remover da biblioteca</button></div>`;
+    el.querySelector('b').textContent=e.n;el.querySelector('.pill').textContent='salva em '+fmtDate(e.t).slice(0,10);
+    try{const img=new Image();img.alt='Assinatura de '+e.n;img.src=strokesToCanvas(decodeStrokes(e.s),e.lw,240).toDataURL();el.querySelector('.done').appendChild(img)}catch(err){}
+    const del=el.querySelector('[data-a=del]');
+    del.onclick=()=>{if(del.dataset.armed){const l=libGet();delete l[k];LS.set('lib',l);renderLib();renderSigners();return}
+      del.dataset.armed='1';del.textContent='Toque de novo para remover';setTimeout(()=>{if(del.isConnected){delete del.dataset.armed;del.textContent='Remover da biblioteca'}},4000)};
+    box.appendChild(el);
+  }
+}
+async function saveFile(data,filename,msgEl){
+  const blob=new Blob([data]);
+  if(inClaude){const d=await window.claude.use('downloads');
+    if(!d){msgEl.textContent='Salvar não está disponível nesta visualização.';return}
+    try{await d.save({filename,data:blob});msgEl.textContent='Cópia salva.'}catch(e){msgEl.textContent=e&&e.code==='declined'?'Download cancelado.':'Não foi possível salvar.'}return}
+  const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);
+  msgEl.textContent='Cópia baixada. Guarde o arquivo em local seguro: ele contém as assinaturas.';
+}
+$('#p-lib-exp').addEventListener('click',()=>{
+  const contacts={};if(facts)for(const f of facts.fields)contacts[norm(f.role)]=LS.get('contact:'+norm(f.role),null);
+  const d=new Date();saveFile(JSON.stringify({v:1,lib:libGet(),me:LS.get('me',''),contacts}),`biblioteca-assinaturas-${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}.json`,$('#p-lib-msg'));
+});
+$('#p-lib-imp').addEventListener('change',async ev=>{
+  const f=ev.target.files[0];ev.target.value='';if(!f)return;
+  try{const j=JSON.parse(await f.text());let n=0;
+    for(const k in (j.lib||{})){const e=j.lib[k];if(e&&e.s&&e.n){libAdd(e);n++}}
+    for(const r in (j.contacts||{}))if(j.contacts[r]&&!LS.get('contact:'+r,null))LS.set('contact:'+r,j.contacts[r]);
+    if(j.me&&!LS.get('me',''))LS.set('me',j.me);
+    $('#p-lib-msg').textContent=`${n} assinatura(s) restaurada(s).`;renderLib();renderSigners();
+  }catch(e){$('#p-lib-msg').textContent='Este arquivo não é uma cópia da biblioteca.'}
+});
+
 function renderSigners(){
   const box=$('#p-signers');
   if(!month||!facts){box.innerHTML='<div class="note">Carregue o relatório para ver as funções.</div>';$('#p-final').disabled=true;return}
@@ -388,13 +440,14 @@ function renderSigners(){
   for(const [fi,f] of facts.fields.entries()){
     const c=contacts[fi];const s=sigs[norm(f.role)];if(s)count++;
     const grp=groupOf(fi),lead=grp[0]===f,roles=grp.map(g=>g.role);
+    const saved=c.name?libGet()[libKey(c.name)]:null;
     const el=document.createElement('div');el.className='signer';
-    el.innerHTML=`<div class="top"><b></b>${s?'<span class="pill ok">assinado</span>':'<span class="pill wait">pendente</span>'}</div>
+    el.innerHTML=`<div class="top"><b></b>${s?(s.auto?'<span class="pill ok">assinatura salva aplicada</span>':'<span class="pill ok">assinado</span>'):'<span class="pill wait">pendente</span>'}</div>
       ${s?'<div class="done"></div>':''}
       <div class="row"><label class="f">Nome<input type="text" data-k="name" placeholder="Nome de quem assina"></label><label class="f">WhatsApp<input type="tel" data-k="phone" placeholder="19 99999-0000"></label>${f.extraPos?`<label class="f">${esc(f.role)} (sai impresso no relatório)<input type="text" data-k="extra" placeholder="Ex.: Ancião, Diácono, Cooperador"></label>`:''}</div>
-      <div class="btns">${lead?`<a class="btn wa" target="_blank" rel="noopener">Pedir pelo WhatsApp${roles.length>1?' ('+esc(roles.join(' + '))+')':''}</a><button class="btn" data-a="copy">Copiar link</button>`:`<span class="note">Mesma pessoa de ${esc(grp[0].role)} (mesmo nome e WhatsApp): vai no mesmo pedido, com uma assinatura só.</span>`}${s?'<button class="btn" data-a="undo">Remover assinatura</button>':''}</div>`;
+      <div class="btns">${lead?`<a class="btn wa" target="_blank" rel="noopener">Pedir pelo WhatsApp${roles.length>1?' ('+esc(roles.join(' + '))+')':''}</a><button class="btn" data-a="copy">Copiar link</button>`:`<span class="note">Mesma pessoa de ${esc(grp[0].role)} (mesmo nome e WhatsApp): vai no mesmo pedido, com uma assinatura só.</span>`}${(!s&&saved)?'<button class="btn" data-a="lib">Usar assinatura salva</button>':''}${s?'<button class="btn" data-a="undo">Remover assinatura</button>':''}</div>`;
     el.querySelector('.top b').textContent=f.role;
-    if(s){const d=el.querySelector('.done');d.textContent=`${s.n} · ${fmtDate(s.t)}`;try{const img=new Image();img.alt='Assinatura de '+s.n;img.src=strokesToCanvas(decodeStrokes(s.s),s.lw,240).toDataURL();d.appendChild(img)}catch(e){}}
+    if(s){const d=el.querySelector('.done');d.textContent=s.auto?`${s.n} · aplicada da biblioteca em ${fmtDate(s.t)}`:`${s.n} · ${fmtDate(s.t)}`;try{const img=new Image();img.alt='Assinatura de '+s.n;img.src=strokesToCanvas(decodeStrokes(s.s),s.lw,240).toDataURL();d.appendChild(img)}catch(e){}}
     const nm=el.querySelector('[data-k=name]'),ph=el.querySelector('[data-k=phone]'),ex=el.querySelector('[data-k=extra]'),wa=el.querySelector('a.wa');nm.value=c.name;ph.value=c.phone;if(ex)ex.value=c.extra||'';
     let tok=0;
     const upd=async()=>{const my=++tok;const cc={name:nm.value.trim(),phone:ph.value,extra:ex?ex.value.trim():''};LS.set('contact:'+norm(f.role),cc);
@@ -404,6 +457,9 @@ function renderSigners(){
     nm.addEventListener('input',upd);ph.addEventListener('input',upd);ph.addEventListener('change',()=>renderSigners());nm.addEventListener('change',()=>renderSigners());if(ex)ex.addEventListener('input',upd);upd();
     const cp=el.querySelector('[data-a=copy]');if(cp)cp.onclick=async ev=>{try{await navigator.clipboard.writeText(wa.dataset.txt);ev.target.textContent='Copiado'}catch(e){ev.target.textContent='Não deu para copiar'}setTimeout(()=>ev.target.textContent='Copiar link',1800)};
     const undo=el.querySelector('[data-a=undo]');if(undo)undo.onclick=()=>{const all=LS.get('sigs:'+month.k,{});delete all[norm(f.role)];LS.set('sigs:'+month.k,all);renderSigners()};
+    const ub=el.querySelector('[data-a=lib]');
+    if(ub)ub.onclick=()=>{const all=LS.get('sigs:'+month.k,{});all[norm(f.role)]={v:2,k:month.k,p:f.role,n:saved.n,s:saved.s,lw:saved.lw,t:Date.now(),auto:true};LS.set('sigs:'+month.k,all);
+      setStatus($('#p-banner'),`Assinatura salva de ${saved.n} aplicada em ${f.role}.`,'ok');renderSigners()};
     box.appendChild(el);
   }
   $('#p-final').disabled=!count;$('#p-final').textContent=count?`Gerar PDF assinado (${count} de ${facts.fields.length})`:'Gerar PDF assinado';
@@ -413,7 +469,7 @@ async function receive(code,fromPaste){
   let p;try{const r=await unpack(code);p=Array.isArray(r)?{v:r[0],k:r[1],p:r[2],n:r[3],t:r[4],lw:r[5],s:r[6]}:r}catch(e){setStatus(ban,'Não consegui ler esta assinatura. Peça para a pessoa enviar de novo.','bad');return}
   if(!month){LS.set('pending',p);setStatus(ban,`Assinatura de ${p.n} (${p.p}) recebida. Carregue o relatório do mês para registrá-la.`,'warn');return}
   if(p.k&&p.k!==month.k){setStatus(ban,`Esta assinatura de ${p.n} é de outro relatório (pedido de um mês anterior). Peça para assinar o link novo.`,'bad');return}
-  const rl=Array.isArray(p.p)?p.p:[p.p];
+  const rl=Array.isArray(p.p)?p.p:[p.p];libAdd(p);renderLib();
   const all=LS.get('sigs:'+month.k,{});for(const r of rl)all[norm(r)]={...p,p:r};LS.set('sigs:'+month.k,all);
   setStatus(ban,`Assinatura de ${p.n} (${rl.join(' e ')}) registrada em ${fmtDate(p.t)}.`,'ok');renderSigners();
 }
@@ -430,7 +486,7 @@ async function stamp(lib,list){
     const img=await lib.embedPng(b64ToBytes(png));
     const r=Math.min(f.box.w/img.width,f.box.h/img.height);const w=img.width*r,h=img.height*r;
     page.drawImage(img,{x:f.box.x+(f.box.w-w)/2,y:f.box.y,width:w,height:h});
-    const label=safe(`${s.n}  ·  ${fmtDate(s.t)}`);let size=8.5;while(font.widthOfTextAtSize(label,size)>f.box.w+8&&size>5)size-=.5;
+    const label=safe(s.auto?`${s.n}  ·  aplicada c/ autorização ${fmtDate(s.t).slice(0,10)}`:`${s.n}  ·  ${fmtDate(s.t)}`);let size=8.5;while(font.widthOfTextAtSize(label,size)>f.box.w+8&&size>5)size-=.5;
     page.drawText(label,{x:f.namePos.x-font.widthOfTextAtSize(label,size)/2,y:f.namePos.y,size,font,color:PDFLib.rgb(.1,.16,.42)});
     const extra=f.extraPos?safe((LS.get('contact:'+norm(f.role),{}).extra||'').trim()):'';
     if(extra){let es=9;while(font.widthOfTextAtSize(extra,es)>f.box.w+6&&es>5)es-=.5;
@@ -452,6 +508,8 @@ $('#p-final').addEventListener('click',async()=>{
 
 (async function boot(){
   await restore();
+  if(month){const ss=LS.get('sigs:'+month.k,{});for(const k in ss)if(!ss[k].auto)libAdd(ss[k])}
+  renderLib();
   const pend=LS.get('pending',null);if(pend&&month){LS.del('pending');await receive(packPayload(pend))}
   const m=location.hash.match(/^#r=([A-Za-z0-9_-]+)/);
   if(m){await receive(m[1]);try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}}
