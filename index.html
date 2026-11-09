@@ -92,19 +92,19 @@ footer{font-size:12px;color:var(--muted);text-align:center}
 <!-- ===================== PAINEL (Junior) ===================== -->
 <div class="wrap" id="panel">
   <header>
-    <div class="eyebrow">CCB · ADM Vinhedo · Relatório de Manutenção</div>
+    <div class="eyebrow">CCB · ADM Vinhedo · Relatório de Manutenção e Ata</div>
     <h1>Assinatura remota do relatório mensal</h1>
-    <p class="lede">Carregue o PDF do mês, mande o pedido pelo WhatsApp e cada pessoa só toca no link e assina. As assinaturas voltam por link e o PDF final sai pronto.</p>
+    <p class="lede">Carregue o PDF (relatório de manutenção ou ata de reunião), mande o pedido pelo WhatsApp e cada pessoa só toca no link e assina. As assinaturas voltam por link e o PDF final sai pronto.</p>
   </header>
 
   <div class="status" id="p-banner" hidden></div>
 
   <section class="card">
-    <h2><span class="k">1</span> Relatório do mês</h2>
+    <h2><span class="k">1</span> Documento para assinar</h2>
     <label class="drop" id="p-drop">
       <input type="file" id="p-file" accept="application/pdf,.pdf">
       <span class="btn">Escolher PDF</span>
-      <span class="meta" id="p-meta"><b>Nenhum relatório carregado</b><span>O PDF fica guardado neste navegador até você trocar.</span></span>
+      <span class="meta" id="p-meta"><b>Nenhum documento carregado</b><span>Relatório de manutenção ou ata de reunião. O PDF fica guardado neste navegador até você trocar.</span></span>
     </label>
     <div id="p-facts" hidden></div>
   </section>
@@ -262,26 +262,45 @@ const packPayload=o=>b64u.enc(new TextEncoder().encode(JSON.stringify(o)));
 /* ---------- leitura do PDF ---------- */
 async function pdfFacts(bytes){
   const doc=await pdfjsLib.getDocument({data:bytes.slice()}).promise;
-  const fields=[];let comp=null,casa=null;const pend=[];
+  const fields=[];let comp=null,casa=null,isAta=false;const pend=[],blanks=[];
+  const canon=s=>/coordenador/i.test(s)?'Coordenador':/volunt/i.test(s)?'Voluntário':/minist/i.test(s)?'Ministério':s;
+  const TRI={primeiro:'1º',segundo:'2º',terceiro:'3º',quarto:'4º'};
   for(let p=1;p<=doc.numPages;p++){
     const page=await doc.getPage(p);const tc=await page.getTextContent();
     const items=tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({s:i.str.trim(),x:i.transform[4],y:i.transform[5],w:i.width,cx:i.transform[4]+i.width/2}));
     const rows={};for(const it of items){const k=Math.round(it.y/3);(rows[k]=rows[k]||[]).push(it)}
     const lines=Object.keys(rows).sort((a,b)=>b-a).map(k=>rows[k].sort((a,b)=>a.x-b.x).map(i=>i.s).join(' '));
     const all=lines.join('\n');
-    if(!comp){const m=all.match(/Compet[êe]ncia\s*(\d{2}\/\d{4})/i);if(m)comp=m[1]}
-    if(!casa){const m=all.match(/Casa de Ora[çc][ãa]o\s+(BR[^\n]*?)\s+Status/i);if(m)casa=m[1].trim()}
+    if(p===1&&/ATA DE REUNI[ÃA]O/i.test(all))isAta=true;
+    if(!comp){let m=all.match(/Compet[êe]ncia\s*(\d{2}\/\d{4})/i);if(m)comp=m[1];
+      else{m=all.match(/(PRIMEIRO|SEGUNDO|TERCEIRO|QUARTO)\s+TRIMESTRE\s+DE\s+(\d{4})/i);if(m)comp=TRI[m[1].toLowerCase()]+' trimestre de '+m[2]}}
+    if(!casa){const m=all.match(/Casa de Ora[çc][ãa]o\s+(BR[^\n]*?)\s+Status/i)||all.match(/CASA DE ORA[ÇC][ÃA]O\s+(BR\s*[\d-]+\s*-\s*[^\n.]+)/i);if(m)casa=m[1].trim()}
+    if(isAta&&p===1){const i0=lines.findIndex(l=>/Pend[êe]ncias para a pr[óo]xima/i.test(l));
+      if(i0>=0)for(const l of lines.slice(i0+1)){if(/^Nada mais/i.test(l))break;const m=l.match(/^\d+\.\s+(.+)$/);if(m&&!pend.includes(m[1].trim()))pend.push(m[1].trim())}}
+    if(isAta){ /* campos em branco "____" da ata: dia, horário de início e de encerramento */
+      const raw=tc.items.filter(i=>i.str&&i.str.trim());
+      raw.forEach((it,k)=>{if(!/^_{2,}$/.test(it.str.trim()))return;const nx=(raw[k+1]&&raw[k+1].str||'').trim().toLowerCase();
+        const kind=/^dia/.test(nx)?'dia':/^hora/.test(nx)?'h':/^minuto/.test(nx)?'m':null;if(!kind)return;
+        blanks.push({page:p-1,x:it.transform[4],y:it.transform[5],w:it.width,kind})});
+    }
     for(const l of lines){const m=l.match(/\b(\d+\.\d+)\s+(.+?)\s+\d{2}\/\d{2}\/\d{4}\s+(Inspecionado e com avarias|N[ãa]o inspecionado)/i);
       if(m){const t=`${m[2].replace(/\s*\(.*$/,'').trim()} — ${/avaria/i.test(m[3])?'com avarias':'não inspecionado'}`;if(!pend.includes(t))pend.push(t)}}
     for(const a of items.filter(i=>/^assinatura$/i.test(i.s))){
-      const below=items.filter(i=>i!==a&&i.y<a.y&&a.y-i.y<45&&Math.abs(i.cx-a.cx)<70&&!/^(nome|assinatura)$/i.test(i.s)).sort((m,n)=>(a.y-m.y)-(a.y-n.y));
       const nome=items.filter(i=>/^nome$/i.test(i.s)&&i.y>a.y&&i.y-a.y<70&&Math.abs(i.cx-a.cx)<45).sort((m,n)=>m.y-n.y)[0];
+      if(!nome)continue; /* ignora a lista de presença e outros "Assinatura" soltos */
+      const below=items.filter(i=>i!==a&&i.y<a.y&&a.y-i.y<45&&Math.abs(i.cx-a.cx)<70&&!/^(nome|assinatura)$/i.test(i.s)).sort((m,n)=>(a.y-m.y)-(a.y-n.y));
       const rl=below[0];
-      fields.push({page:p-1,role:rl?rl.s:`Assinatura ${fields.length+1}`,box:{x:a.cx-82,y:a.y+11.5,w:164,h:24},namePos:{x:a.cx,y:nome?nome.y+12.5:a.y+48},
+      fields.push({page:p-1,role:rl?canon(rl.s):`Assinatura ${fields.length+1}`,box:{x:a.cx-82,y:a.y+11.5,w:164,h:24},namePos:{x:a.cx,y:nome?nome.y+12.5:a.y+48},
         extraPos:(rl&&a.y-rl.y>28)?{x:rl.cx,y:rl.y+12.5}:null});
     }
   }
-  return {fields,comp,casa,pend:pend.slice(0,6),numPages:doc.numPages};
+  let nh=0,nm=0;
+  for(const b of blanks){if(b.kind==='dia'){b.label='Dia da reunião';b.ph='Ex.: 25'}
+    else if(b.kind==='h'){b.label=(nh++?'Encerramento':'Início')+': hora';b.ph='Ex.: 19'}
+    else{b.label=(nm++?'Encerramento':'Início')+': minutos';b.ph='Ex.: 30'}}
+  return {fields,comp,casa,pend:pend.slice(0,6),numPages:doc.numPages,blanks,
+    doc:isAta?'Ata de Reunião da Manutenção Preventiva':'Relatório de Manutenção',art:isAta?'na':'no',compLabel:isAta?'Período':'Competência',
+    pendLabel:isAta?'Pendências para a próxima reunião':'Pontos anotados no relatório'};
 }
 
 /* ---------- entregar arquivo ---------- */
@@ -310,16 +329,17 @@ async function offerFile(bytes,filename,box){
 /* =============== MODO: QUEM ASSINA =============== */
 const Q=new URLSearchParams(location.search);
 if(Q.get('a')||Q.get('p')){
-  $('#panel').hidden=true;$('#signer').hidden=false;document.title='Assinar relatório';
+  $('#panel').hidden=true;$('#signer').hidden=false;document.title='Assinar documento';
   (async()=>{
   let A={};
-  if(Q.get('a')){try{const r=await unpack(Q.get('a'));A={p:r[0],c:r[1],h:r[2],n:r[3],w:r[4],k:r[5],i:r[6]}}catch(e){$('#s-sub').textContent='Este link está incompleto. Peça um novo link para quem te enviou.';$('#s-send').disabled=true;return}}
+  if(Q.get('a')){try{const r=await unpack(Q.get('a'));A={p:r[0],c:r[1],h:r[2],n:r[3],w:r[4],k:r[5],i:r[6],d:r[7],l:r[8],il:r[9]}}catch(e){$('#s-sub').textContent='Este link está incompleto. Peça um novo link para quem te enviou.';$('#s-send').disabled=true;return}}
   else A={p:Q.get('p'),c:Q.get('c'),h:Q.get('h'),n:Q.get('n'),w:Q.get('w'),k:Q.get('k'),i:Q.get('i')};
   const roles=Array.isArray(A.p)?A.p:[A.p],role=roles.join(' e '),comp=A.c||'',casa=A.h||'',back=A.w||'',key=A.k||'',base=location.origin+location.pathname;
-  $('#s-sub').textContent=`Falta só a sua assinatura como ${role} no Relatório de Manutenção.`;
-  $('#s-facts').innerHTML=(casa?`<div><span>Casa de Oração</span>${esc(casa)}</div>`:'')+(comp?`<div><span>Competência</span><b class="mono">${esc(comp)}</b></div>`:'')+`<div><span>Assinar como</span><b>${esc(role)}</b></div>`;
+  const docName=A.d||'Relatório de Manutenção',art=/^Ata/i.test(docName)?'na':'no';
+  $('#s-sub').textContent=`Falta só a sua assinatura como ${role} ${art} ${docName}.`;
+  $('#s-facts').innerHTML=(casa?`<div><span>Casa de Oração</span>${esc(casa)}</div>`:'')+(comp?`<div><span>${esc(A.l||'Competência')}</span><b class="mono">${esc(comp)}</b></div>`:'')+`<div><span>Assinar como</span><b>${esc(role)}</b></div>`;
   const pend=(A.i||'').split('|').filter(Boolean);
-  $('#s-pend').innerHTML=pend.length?`<p class="note" style="margin-bottom:4px">Pontos anotados no relatório:</p><ul class="pend">${pend.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`:'<p class="note">Sem pontos de atenção anotados.</p>';
+  $('#s-pend').innerHTML=pend.length?`<p class="note" style="margin-bottom:4px">${esc(A.il||'Pontos anotados no relatório')}:</p><ul class="pend">${pend.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`:'<p class="note">Sem pontos de atenção anotados.</p>';
   $('#s-name').value=A.n||'';
   const padEl=$('#pad');let strokes=[],cur=null;
   const sizePad=()=>{const r=padEl.getBoundingClientRect();if(!r.width)return;const dpr=Math.min(window.devicePixelRatio||1,3);padEl.width=Math.round(r.width*dpr);padEl.height=Math.round(r.height*dpr);redraw()};
@@ -367,11 +387,15 @@ async function loadMonth(f){
     const bytes=new Uint8Array(await f.arrayBuffer());const fx=await pdfFacts(bytes);
     const prev=month;
     const same=prev&&prev.comp===fx.comp&&prev.casa===fx.casa;
-    month={k:same?prev.k:Math.random().toString(36).slice(2,10),name:f.name,comp:fx.comp,casa:fx.casa,pdf:bytesToB64(bytes)};
+    const h=docHash(fx);
+    const k=LS.get('keyFor:'+h,null)||(same?prev.k:h);LS.set('keyFor:'+h,k);
+    month={k,name:f.name,comp:fx.comp,casa:fx.casa,pdf:bytesToB64(bytes)};
+    setStatus($('#p-banner'),'');$('#p-result').hidden=true;
     if(!LS.set('month',month))setStatus($('#p-status'),'O navegador não deixou guardar o PDF. Ele vale só enquanto esta página estiver aberta.','warn');
     facts=fx;renderMonth();
-  }catch(e){meta.innerHTML='<b>Não consegui abrir este arquivo</b><span>Confira se é o PDF do relatório.</span>'}
+  }catch(e){meta.innerHTML='<b>Não consegui abrir este arquivo</b><span>Confira se é o PDF do relatório ou da ata.</span>'}
 }
+function docHash(fx){const s=`${fx.doc}|${fx.comp}|${fx.casa}`;let h=5381;for(let i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0;return 'd'+h.toString(36)}
 async function restore(){
   if(!month||!month.pdf)return;
   try{facts=await pdfFacts(b64ToBytes(month.pdf));renderMonth()}catch(e){}
@@ -380,13 +404,25 @@ function renderMonth(){
   const meta=$('#p-meta');meta.innerHTML='<b></b><span></span>';meta.querySelector('b').textContent=month.name;
   meta.querySelector('span').textContent=`${facts.numPages} folha(s) · toque para trocar`;
   const fx=$('#p-facts');fx.hidden=false;
-  fx.innerHTML=`<div class="facts"><div><span>Casa de Oração</span>${esc(facts.casa||'—')}</div><div><span>Competência</span><b class="mono">${esc(facts.comp||'—')}</b></div><div><span>Campos de assinatura</span>${facts.fields.length?facts.fields.map(f=>esc(f.role)).join(', '):'nenhum encontrado'}</div></div>`+
-    (facts.pend.length?`<p class="note" style="margin-top:8px">Pontos anotados (aparecem para quem assina): ${facts.pend.map(esc).join('; ')}</p>`:'');
+  fx.innerHTML=`<div class="facts"><div><span>Documento</span><b>${esc(facts.doc)}</b></div><div><span>Casa de Oração</span>${esc(facts.casa||'—')}</div><div><span>${esc(facts.compLabel)}</span><b class="mono">${esc(facts.comp||'—')}</b></div><div><span>Campos de assinatura</span>${facts.fields.length?facts.fields.map(f=>esc(f.role)).join(', '):'nenhum encontrado'}</div></div>`+
+    (facts.pend.length?`<p class="note" style="margin-top:8px">${esc(facts.pendLabel)} (aparecem para quem assina):${facts.pend.map(esc).join('; ')}</p>`:'');
+  const bl=facts.blanks||[];
+  if(bl.length){
+    const vals=LS.get('blanks:'+month.k,[]);
+    const w=document.createElement('div');
+    w.innerHTML=`<p class="note" style="margin:12px 0 6px"><b>Campos em branco da ata</b>: preencha e eles saem impressos no PDF final.</p><div class="row"></div>`;
+    const row=w.querySelector('.row');
+    bl.forEach((b,i)=>{const l=document.createElement('label');l.className='f';l.textContent=b.label;
+      const inp=document.createElement('input');inp.type='text';inp.inputMode='numeric';inp.maxLength=2;inp.className='mono';inp.id='blank-'+i;inp.placeholder=b.ph;inp.value=vals[i]||'';
+      inp.addEventListener('input',()=>{inp.value=inp.value.replace(/\D/g,'');const v=LS.get('blanks:'+month.k,[]);v[i]=inp.value;LS.set('blanks:'+month.k,v)});
+      l.appendChild(inp);row.appendChild(l)});
+    fx.appendChild(w);
+  }
   $('#p-reset').hidden=false;renderSigners();
 }
 async function signerLink(role,c){
   const base=($('#p-base').value||DEFAULT_BASE).trim();
-  const a=await pack([role,facts.comp||'',facts.casa||'',c.name||'',digits($('#p-me').value),month.k,facts.pend.join('|')]);
+  const a=await pack([role,facts.comp||'',facts.casa||'',c.name||'',digits($('#p-me').value),month.k,facts.pend.join('|'),facts.doc,facts.compLabel,facts.pendLabel]);
   return base+(base.includes('?')?'&':'?')+'a='+a;
 }
 /* ---------- biblioteca de assinaturas ---------- */
@@ -432,7 +468,7 @@ $('#p-lib-imp').addEventListener('change',async ev=>{
 function renderSigners(){
   const box=$('#p-signers');
   if(!month||!facts){box.innerHTML='<div class="note">Carregue o relatório para ver as funções.</div>';$('#p-final').disabled=true;return}
-  if(!facts.fields.length){box.innerHTML='<div class="status warn">Não encontrei os campos "Assinatura" neste PDF. Use o modelo do SIGA (MNT00207).</div>';$('#p-final').disabled=true;return}
+  if(!facts.fields.length){box.innerHTML='<div class="status warn">Não encontrei os campos "Assinatura" neste PDF. Use o modelo do SIGA (relatório MNT00207 ou ata MNT00404).</div>';$('#p-final').disabled=true;return}
   const sigs=LS.get('sigs:'+month.k,{});box.innerHTML='';let count=0;
   const contacts=facts.fields.map(f=>LS.get('contact:'+norm(f.role),{name:'',phone:''}));
   const who=j=>{const d=digits(contacts[j].phone),n=norm(contacts[j].name).replace(/\s+/g,' ');return d&&n?d+'|'+n:''};
@@ -452,7 +488,7 @@ function renderSigners(){
     let tok=0;
     const upd=async()=>{const my=++tok;const cc={name:nm.value.trim(),phone:ph.value,extra:ex?ex.value.trim():''};LS.set('contact:'+norm(f.role),cc);
       const first=(cc.name.split(' ')[0]||'');if(!wa)return;const link=await signerLink(roles.length>1?roles:f.role,cc);if(my!==tok)return;
-      const txt=`A Paz de Deus${first?', '+first:''}! Preciso da sua assinatura no Relatório de Manutenção ${facts.comp||''}. Toque no link para assinar:\n${link}`;
+      const txt=`A Paz de Deus${first?', '+first:''}! Preciso da sua assinatura ${facts.art} ${facts.doc}${facts.comp?' ('+facts.comp+')':''}. Toque no link para assinar:\n${link}`;
       wa.href=`https://wa.me/${digits(cc.phone)}?text=${encodeURIComponent(txt)}`;wa.dataset.txt=txt};
     nm.addEventListener('input',upd);ph.addEventListener('input',upd);ph.addEventListener('change',()=>renderSigners());nm.addEventListener('change',()=>renderSigners());if(ex)ex.addEventListener('input',upd);upd();
     const cp=el.querySelector('[data-a=copy]');if(cp)cp.onclick=async ev=>{try{await navigator.clipboard.writeText(wa.dataset.txt);ev.target.textContent='Copiado'}catch(e){ev.target.textContent='Não deu para copiar'}setTimeout(()=>ev.target.textContent='Copiar link',1800)};
@@ -468,14 +504,16 @@ async function receive(code,fromPaste){
   const ban=$('#p-banner');
   let p;try{const r=await unpack(code);p=Array.isArray(r)?{v:r[0],k:r[1],p:r[2],n:r[3],t:r[4],lw:r[5],s:r[6]}:r}catch(e){setStatus(ban,'Não consegui ler esta assinatura. Peça para a pessoa enviar de novo.','bad');return}
   if(!month){LS.set('pending',p);setStatus(ban,`Assinatura de ${p.n} (${p.p}) recebida. Carregue o relatório do mês para registrá-la.`,'warn');return}
-  if(p.k&&p.k!==month.k){setStatus(ban,`Esta assinatura de ${p.n} é de outro relatório (pedido de um mês anterior). Peça para assinar o link novo.`,'bad');return}
+  if(p.k&&p.k!==month.k){
+    const rl0=Array.isArray(p.p)?p.p:[p.p];const other=LS.get('sigs:'+p.k,{});for(const r of rl0)other[norm(r)]={...p,p:r};LS.set('sigs:'+p.k,other);libAdd(p);renderLib();
+    setStatus(ban,`Assinatura de ${p.n} (${rl0.join(' e ')}) guardada para outro documento. Carregue o PDF desse documento para incluí-la.`,'warn');return}
   const rl=Array.isArray(p.p)?p.p:[p.p];libAdd(p);renderLib();
   const all=LS.get('sigs:'+month.k,{});for(const r of rl)all[norm(r)]={...p,p:r};LS.set('sigs:'+month.k,all);
   setStatus(ban,`Assinatura de ${p.n} (${rl.join(' e ')}) registrada em ${fmtDate(p.t)}.`,'ok');renderSigners();
 }
 $('#p-paste-go').addEventListener('click',()=>{const m=$('#p-paste').value.match(/#r=([A-Za-z0-9_-]+)/);if(!m){setStatus($('#p-banner'),'Não encontrei o link de assinatura no texto colado.','bad');return}receive(m[1],true);$('#p-paste').value=''});
 $('#p-reset').addEventListener('click',()=>{if(month)LS.del('sigs:'+month.k);LS.del('month');month=null;facts=null;$('#p-facts').hidden=true;$('#p-reset').hidden=true;$('#p-result').hidden=true;
-  $('#p-meta').innerHTML='<b>Nenhum relatório carregado</b><span>Escolha o PDF do novo mês.</span>';setStatus($('#p-banner'),'');renderSigners()});
+  $('#p-meta').innerHTML='<b>Nenhum documento carregado</b><span>Escolha o PDF do relatório ou da ata.</span>';setStatus($('#p-banner'),'');renderSigners()});
 
 async function stamp(lib,list){
   const font=await lib.embedFont(PDFLib.StandardFonts.Helvetica);
@@ -498,16 +536,22 @@ $('#p-final').addEventListener('click',async()=>{
   try{
     const sigs=LS.get('sigs:'+month.k,{});const lib=await PDFLib.PDFDocument.load(b64ToBytes(month.pdf),{ignoreEncryption:true});
     const list=facts.fields.filter(f=>sigs[norm(f.role)]).map(f=>({f,s:sigs[norm(f.role)]}));
-    await stamp(lib,list);const out=await lib.save();
+    await stamp(lib,list);
+    const bl=facts.blanks||[],vals=LS.get('blanks:'+month.k,[]);
+    if(bl.some((b,i)=>vals[i])){const font=await lib.embedFont(PDFLib.StandardFonts.Helvetica);
+      bl.forEach((b,i)=>{let v=(vals[i]||'').trim();if(!v)return;if(b.kind==='m')v=v.padStart(2,'0');
+        lib.getPage(b.page).drawText(v,{x:b.x+b.w/2-font.widthOfTextAtSize(v,10)/2,y:b.y+1.5,size:10,font,color:PDFLib.rgb(.1,.16,.42)})})}
+    const out=await lib.save();
     const pend=facts.fields.length-list.length;
     setStatus(st,pend?`${pend} assinatura(s) ainda pendente(s). Você pode gerar de novo quando chegarem.`:'Todas as assinaturas incluídas.',pend?'warn':'ok');
-    await offerFile(out,`Relatorio Manutencao ${(facts.comp||'').replace('/','-')} - assinado.pdf`.replace(/\s+/g,' '),$('#p-result'));
+    await offerFile(out,`${(month.name||'Documento').replace(/\.pdf$/i,'')} - assinado.pdf`.replace(/\s+/g,' '),$('#p-result'));
   }catch(e){setStatus(st,'Não foi possível montar o PDF ('+(e&&e.message||e)+').','bad')}
   finally{$('#p-final').disabled=false}
 });
 
 (async function boot(){
   await restore();
+  if(month&&facts){const h=docHash(facts);if(!LS.get('keyFor:'+h,null))LS.set('keyFor:'+h,month.k)}
   if(month){const ss=LS.get('sigs:'+month.k,{});for(const k in ss)if(!ss[k].auto)libAdd(ss[k])}
   renderLib();
   const pend=LS.get('pending',null);if(pend&&month){LS.del('pending');await receive(packPayload(pend))}
