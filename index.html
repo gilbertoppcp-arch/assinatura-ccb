@@ -429,8 +429,17 @@ async function signerLink(role,c){
 const libKey=n=>norm(n).replace(/\s+/g,' ');
 const libGet=()=>LS.get('lib',{});
 function libAdd(p){const k=libKey(p.n);if(!k||!p.s)return;const lib=libGet();if(!lib[k]||lib[k].t<p.t){lib[k]={n:p.n,s:p.s,lw:p.lw,t:p.t};LS.set('lib',lib)}}
+/* agenda: nome -> WhatsApp e ministério, para preencher sozinho */
+const bookGet=()=>LS.get('book',{});
+function bookPut(name,phone,extra){const k=libKey(name);if(!k||!digits(phone))return;const b=bookGet();const old=b[k]||{};
+  b[k]={n:(name||'').trim(),phone,extra:(extra||'').trim()||old.extra||''};LS.set('book',b);refreshNames()}
+function refreshNames(){let dl=$('#lib-names');if(!dl){dl=document.createElement('datalist');dl.id='lib-names';document.body.appendChild(dl)}
+  const names={};const lib=libGet(),book=bookGet();for(const k in book)names[k]=book[k].n;for(const k in lib)names[k]=lib[k].n;
+  dl.innerHTML='';for(const k of Object.keys(names).sort((a,b)=>a.localeCompare(b))){const o=document.createElement('option');o.value=names[k];dl.appendChild(o)}}
 function renderLib(){
   const box=$('#p-lib');const lib=libGet();const keys=Object.keys(lib).sort((a,b)=>a.localeCompare(b));box.innerHTML='';
+  let dl=$('#lib-names');if(!dl){dl=document.createElement('datalist');dl.id='lib-names';document.body.appendChild(dl)}
+  refreshNames();
   if(!keys.length){box.innerHTML='<div class="note">Nenhuma assinatura salva ainda. Elas entram aqui automaticamente quando você registra um retorno.</div>';return}
   for(const k of keys){const e=lib[k];
     const el=document.createElement('div');el.className='signer';
@@ -453,12 +462,13 @@ async function saveFile(data,filename,msgEl){
 }
 $('#p-lib-exp').addEventListener('click',()=>{
   const contacts={};if(facts)for(const f of facts.fields)contacts[norm(f.role)]=LS.get('contact:'+norm(f.role),null);
-  const d=new Date();saveFile(JSON.stringify({v:1,lib:libGet(),me:LS.get('me',''),contacts}),`biblioteca-assinaturas-${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}.json`,$('#p-lib-msg'));
+  const d=new Date();saveFile(JSON.stringify({v:1,lib:libGet(),book:bookGet(),me:LS.get('me',''),contacts}),`biblioteca-assinaturas-${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}.json`,$('#p-lib-msg'));
 });
 $('#p-lib-imp').addEventListener('change',async ev=>{
   const f=ev.target.files[0];ev.target.value='';if(!f)return;
   try{const j=JSON.parse(await f.text());let n=0;
     for(const k in (j.lib||{})){const e=j.lib[k];if(e&&e.s&&e.n){libAdd(e);n++}}
+    for(const k in (j.book||{})){const e=j.book[k];if(e&&e.n)bookPut(e.n,e.phone,e.extra)}
     for(const r in (j.contacts||{}))if(j.contacts[r]&&!LS.get('contact:'+r,null))LS.set('contact:'+r,j.contacts[r]);
     if(j.me&&!LS.get('me',''))LS.set('me',j.me);
     $('#p-lib-msg').textContent=`${n} assinatura(s) restaurada(s).`;renderLib();renderSigners();
@@ -480,7 +490,7 @@ function renderSigners(){
     const el=document.createElement('div');el.className='signer';
     el.innerHTML=`<div class="top"><b></b>${s?(s.auto?'<span class="pill ok">assinatura salva aplicada</span>':'<span class="pill ok">assinado</span>'):'<span class="pill wait">pendente</span>'}</div>
       ${s?'<div class="done"></div>':''}
-      <div class="row"><label class="f">Nome<input type="text" data-k="name" placeholder="Nome de quem assina"></label><label class="f">WhatsApp<input type="tel" data-k="phone" placeholder="19 99999-0000"></label>${f.extraPos?`<label class="f">${esc(f.role)} (sai impresso no relatório)<input type="text" data-k="extra" placeholder="Ex.: Ancião, Diácono, Cooperador"></label>`:''}</div>
+      <div class="row"><label class="f">Nome<input type="text" data-k="name" list="lib-names" autocomplete="off" placeholder="Escolha da lista ou digite"></label><label class="f">WhatsApp<input type="tel" data-k="phone" placeholder="19 99999-0000"></label>${f.extraPos?`<label class="f">${esc(f.role)} (sai impresso no relatório)<input type="text" data-k="extra" placeholder="Ex.: Ancião, Diácono, Cooperador"></label>`:''}</div>
       <div class="btns">${lead?`<a class="btn wa" target="_blank" rel="noopener">Pedir pelo WhatsApp${roles.length>1?' ('+esc(roles.join(' + '))+')':''}</a><button class="btn" data-a="copy">Copiar link</button>`:`<span class="note">Mesma pessoa de ${esc(grp[0].role)} (mesmo nome e WhatsApp): vai no mesmo pedido, com uma assinatura só.</span>`}${(!s&&saved)?'<button class="btn" data-a="lib">Usar assinatura salva</button>':''}${s?'<button class="btn" data-a="undo">Remover assinatura</button>':''}</div>`;
     el.querySelector('.top b').textContent=f.role;
     if(s){const d=el.querySelector('.done');d.textContent=s.auto?`${s.n} · aplicada da biblioteca em ${fmtDate(s.t)}`:`${s.n} · ${fmtDate(s.t)}`;try{const img=new Image();img.alt='Assinatura de '+s.n;img.src=strokesToCanvas(decodeStrokes(s.s),s.lw,240).toDataURL();d.appendChild(img)}catch(e){}}
@@ -490,7 +500,15 @@ function renderSigners(){
       const first=(cc.name.split(' ')[0]||'');if(!wa)return;const link=await signerLink(roles.length>1?roles:f.role,cc);if(my!==tok)return;
       const txt=`A Paz de Deus${first?', '+first:''}! Preciso da sua assinatura ${facts.art} ${facts.doc}${facts.comp?' ('+facts.comp+')':''}. Toque no link para assinar:\n${link}`;
       wa.href=`https://wa.me/${digits(cc.phone)}?text=${encodeURIComponent(txt)}`;wa.dataset.txt=txt};
-    nm.addEventListener('input',upd);ph.addEventListener('input',upd);ph.addEventListener('change',()=>renderSigners());nm.addEventListener('change',()=>renderSigners());if(ex)ex.addEventListener('input',upd);upd();
+    nm.addEventListener('input',upd);ph.addEventListener('input',upd);ph.addEventListener('change',()=>{bookPut(nm.value,ph.value,ex?ex.value:'');renderSigners()});
+    if(ex)ex.addEventListener('change',()=>bookPut(nm.value,ph.value,ex.value));
+    const fillFromBook=()=>{const k=libKey(nm.value),b=bookGet()[k];if(!b)return false;
+      if(b.phone)ph.value=b.phone;if(ex&&b.extra&&!ex.value.trim())ex.value=b.extra;upd();return true};
+    nm.addEventListener('input',fillFromBook); /* nome conhecido digitado ou escolhido na lista: puxa o WhatsApp na hora */
+    nm.addEventListener('change',()=>{
+      const k=libKey(nm.value),e=bookGet()[k]||libGet()[k];if(e)nm.value=e.n;
+      if(!fillFromBook()&&!ph.value.trim()&&k){for(const g of facts.fields){const o=LS.get('contact:'+norm(g.role),null);if(o&&o.phone&&libKey(o.name)===k){ph.value=o.phone;break}}}
+      LS.set('contact:'+norm(f.role),{name:nm.value.trim(),phone:ph.value,extra:ex?ex.value.trim():''});bookPut(nm.value,ph.value,ex?ex.value:'');renderSigners()});if(ex)ex.addEventListener('input',upd);upd();
     const cp=el.querySelector('[data-a=copy]');if(cp)cp.onclick=async ev=>{try{await navigator.clipboard.writeText(wa.dataset.txt);ev.target.textContent='Copiado'}catch(e){ev.target.textContent='Não deu para copiar'}setTimeout(()=>ev.target.textContent='Copiar link',1800)};
     const undo=el.querySelector('[data-a=undo]');if(undo)undo.onclick=()=>{const all=LS.get('sigs:'+month.k,{});delete all[norm(f.role)];LS.set('sigs:'+month.k,all);renderSigners()};
     const ub=el.querySelector('[data-a=lib]');
@@ -551,7 +569,8 @@ $('#p-final').addEventListener('click',async()=>{
 
 (async function boot(){
   await restore();
-  if(month&&facts){const h=docHash(facts);if(!LS.get('keyFor:'+h,null))LS.set('keyFor:'+h,month.k)}
+  if(month&&facts){const h=docHash(facts);if(!LS.get('keyFor:'+h,null))LS.set('keyFor:'+h,month.k);
+    for(const g of facts.fields){const o=LS.get('contact:'+norm(g.role),null);if(o&&o.name&&!bookGet()[libKey(o.name)])bookPut(o.name,o.phone,o.extra)}}
   if(month){const ss=LS.get('sigs:'+month.k,{});for(const k in ss)if(!ss[k].auto)libAdd(ss[k])}
   renderLib();
   const pend=LS.get('pending',null);if(pend&&month){LS.del('pending');await receive(packPayload(pend))}
