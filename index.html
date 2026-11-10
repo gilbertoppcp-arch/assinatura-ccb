@@ -29,7 +29,7 @@ h1{font-size:26px;line-height:1.15;margin:0;text-wrap:balance;font-weight:700}
 .card h2{font-size:16px;margin:0;display:flex;gap:8px;align-items:baseline}
 .card h2 .k{font-family:var(--f-data);font-size:12px;color:var(--pen)}
 label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);min-width:0}
-input[type=text],input[type=tel],input[type=url],textarea{font:inherit;font-size:15px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+input[type=text],input[type=tel],input[type=url],input[type=datetime-local],textarea{font:inherit;font-size:15px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
 textarea{resize:vertical;min-height:70px;font-size:13px;font-family:var(--f-data)}
 input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible,.drop:focus-within{outline:2px solid var(--pen);outline-offset:2px}
 .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
@@ -134,7 +134,7 @@ footer{font-size:12px;color:var(--muted);text-align:center}
 
   <section class="card">
     <h2>Biblioteca de assinaturas</h2>
-    <p class="note">Toda assinatura recebida fica salva aqui. Nos próximos meses, toque em "Usar assinatura salva" no cartão da pessoa, sem precisar pedir de novo. No PDF sai o nome com "aplicada c/ autorização" e a data. Use só para quem autorizou.</p>
+    <p class="note">Toda assinatura recebida fica salva aqui. Nos próximos meses, toque em "Usar assinatura salva" no cartão da pessoa, sem precisar pedir de novo. No PDF sai o nome com "aplicada c/ autorização", a data e o horário, que você pode ajustar no cartão para bater com o documento. Use só para quem autorizou.</p>
     <div class="signers" id="p-lib"></div>
     <div class="btns">
       <button class="btn" id="p-lib-exp">Baixar cópia de segurança</button>
@@ -493,7 +493,14 @@ function renderSigners(){
       <div class="row"><label class="f">Nome<input type="text" data-k="name" list="lib-names" autocomplete="off" placeholder="Escolha da lista ou digite"></label><label class="f">WhatsApp<input type="tel" data-k="phone" placeholder="19 99999-0000"></label>${f.extraPos?`<label class="f">${esc(f.role)} (sai impresso no relatório)<input type="text" data-k="extra" placeholder="Ex.: Ancião, Diácono, Cooperador"></label>`:''}</div>
       <div class="btns">${lead?`<a class="btn wa" target="_blank" rel="noopener">Pedir pelo WhatsApp${roles.length>1?' ('+esc(roles.join(' + '))+')':''}</a><button class="btn" data-a="copy">Copiar link</button>`:`<span class="note">Mesma pessoa de ${esc(grp[0].role)} (mesmo nome e WhatsApp): vai no mesmo pedido, com uma assinatura só.</span>`}${(!s&&saved)?'<button class="btn" data-a="lib">Usar assinatura salva</button>':''}${s?'<button class="btn" data-a="undo">Remover assinatura</button>':''}</div>`;
     el.querySelector('.top b').textContent=f.role;
-    if(s){const d=el.querySelector('.done');d.textContent=s.auto?`${s.n} · aplicada da biblioteca em ${fmtDate(s.t)}`:`${s.n} · ${fmtDate(s.t)}`;try{const img=new Image();img.alt='Assinatura de '+s.n;img.src=strokesToCanvas(decodeStrokes(s.s),s.lw,240).toDataURL();d.appendChild(img)}catch(e){}}
+    if(s){const d=el.querySelector('.done');d.textContent=s.auto?`${s.n} · assinatura da biblioteca · sai no PDF com ${fmtDate(s.t)}`:`${s.n} · ${fmtDate(s.t)}`;try{const img=new Image();img.alt='Assinatura de '+s.n;img.src=strokesToCanvas(decodeStrokes(s.s),s.lw,240).toDataURL();d.appendChild(img)}catch(e){}
+      if(s.auto){ /* assinatura da biblioteca: data e horário editáveis para bater com o documento */
+        const lb=document.createElement('label');lb.className='f';lb.style.marginTop='8px';lb.textContent='Data e horário que saem no PDF';
+        const inp=document.createElement('input');inp.type='datetime-local';inp.id='dt-'+norm(f.role).replace(/\W/g,'');
+        const dt=new Date(s.t);inp.value=`${dt.getFullYear()}-${pad2(dt.getMonth()+1)}-${pad2(dt.getDate())}T${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
+        inp.addEventListener('change',()=>{const t=new Date(inp.value).getTime();if(!t)return;const all=LS.get('sigs:'+month.k,{});const cur=all[norm(f.role)];if(!cur)return;
+          cur.t=t;LS.set('sigs:'+month.k,all);d.firstChild.textContent=`${s.n} · assinatura da biblioteca · sai no PDF com ${fmtDate(t)}`});
+        lb.appendChild(inp);d.appendChild(lb)}}
     const nm=el.querySelector('[data-k=name]'),ph=el.querySelector('[data-k=phone]'),ex=el.querySelector('[data-k=extra]'),wa=el.querySelector('a.wa');nm.value=c.name;ph.value=c.phone;if(ex)ex.value=c.extra||'';
     let tok=0;
     const upd=async()=>{const my=++tok;const cc={name:nm.value.trim(),phone:ph.value,extra:ex?ex.value.trim():''};LS.set('contact:'+norm(f.role),cc);
@@ -542,7 +549,7 @@ async function stamp(lib,list){
     const img=await lib.embedPng(b64ToBytes(png));
     const r=Math.min(f.box.w/img.width,f.box.h/img.height);const w=img.width*r,h=img.height*r;
     page.drawImage(img,{x:f.box.x+(f.box.w-w)/2,y:f.box.y,width:w,height:h});
-    const label=safe(s.auto?`${s.n}  ·  aplicada c/ autorização ${fmtDate(s.t).slice(0,10)}`:`${s.n}  ·  ${fmtDate(s.t)}`);let size=8.5;while(font.widthOfTextAtSize(label,size)>f.box.w+8&&size>5)size-=.5;
+    const label=safe(s.auto?`${s.n}  ·  aplicada c/ autorização ${fmtDate(s.t)}`:`${s.n}  ·  ${fmtDate(s.t)}`);let size=8.5;while(font.widthOfTextAtSize(label,size)>f.box.w+8&&size>5)size-=.5;
     page.drawText(label,{x:f.namePos.x-font.widthOfTextAtSize(label,size)/2,y:f.namePos.y,size,font,color:PDFLib.rgb(.1,.16,.42)});
     const extra=f.extraPos?safe((LS.get('contact:'+norm(f.role),{}).extra||'').trim()):'';
     if(extra){let es=9;while(font.widthOfTextAtSize(extra,es)>f.box.w+6&&es>5)es-=.5;
